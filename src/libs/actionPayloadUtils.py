@@ -144,3 +144,18 @@ def cleanUrl(url):
     # subdomain = parsedUrl.subdomain
     # suffix = parsedUrl.suffix
     return cleaned
+
+
+def parseObj(obj):
+    # Facebook files have been badly encoded - saw fix here: https://stackoverflow.com/questions/50008296/facebook-json-badly-encoded
+
+    if isinstance(obj, str):
+        return obj.encode('latin_1').decode('utf-8')
+
+    if isinstance(obj, list):
+        return [parseObj(o) for o in obj]
+
+    if isinstance(obj, dict):
+        return {key: parseObj(item) for key, item in obj.items()}
+
+    return obj

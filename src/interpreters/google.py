@@ -38,6 +38,7 @@ class GoogleInterpreter(baseInterpreter):
 
         for row in self.originalData:
             row['time'] = pd.to_datetime(row['time'])
+            r=1
 
     def transform(self, termsToIgnore):
 

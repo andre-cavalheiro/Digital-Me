@@ -41,10 +41,6 @@ if __name__ == '__main__':
         },
     }
 
-    """
-
-    """
-
     client = MongoClient()
     db = client['digitalMe']
     collection = db['content']

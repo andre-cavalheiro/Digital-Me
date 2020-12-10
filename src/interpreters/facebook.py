@@ -1,13 +1,15 @@
 import traceback
 from os.path import join
 import json
+from datetime import datetime as dt
 
 import pandas as pd
 from pymongo import MongoClient
-from libs.actionPayloadUtils import dropByPercentageJSON, extractContextFromFBComment, extractContextFromFBPosts
+from libs.actionPayloadUtils import dropByPercentageJSON, extractContextFromFBComment, extractContextFromFBPosts, parseObj
 from libs.customExceptions import Ignore
 
 from interpreters.base import baseInterpreter
+
 
 class FacebookInterpreter(baseInterpreter):
 
@@ -24,6 +26,7 @@ class FacebookInterpreter(baseInterpreter):
             fullPath = join(path, fileName)
             with open(fullPath, encoding="utf-8") as f:
                 data = json.load(f)
+                data = parseObj(data)
 
             if self.debug:
                 print('Dropping 90% DF')
@@ -42,6 +45,7 @@ class FacebookInterpreter(baseInterpreter):
 
         self.originalData['comments'] = self._processComments()
         self.originalData['your_posts'] = self._processPosts()
+        self.originalData['your_event_responses'] = self._processEvents()
         self.originalData['your_search_history'] = self._processSearches()
 
     def transform(self, termsToIgnore):
@@ -60,16 +64,18 @@ class FacebookInterpreter(baseInterpreter):
             try:
                 dataPoint = row['data'][0]['comment']
 
+                dataPoint['timestamp'] = dt.fromtimestamp(dataPoint['timestamp'])
+
                 if 'comment' not in dataPoint.keys():
                     dataPoint['comment'] = ''   # Comments without any text (just attachments)
+                else:
+                    dataPoint['comment'] = dataPoint['comment']
 
                 if 'attachments' in row.keys():
                     assert(len(row['attachments']) == 1)
                     dataPoint['attachments'] = [attach['data'] for attach in row['attachments']]
                 else:
                     dataPoint['attachments'] = []
-
-                dataPoint['timestamp'] = pd.to_datetime(dataPoint['timestamp'])
 
                 # Process text to extract comment's context
                 type, author = extractContextFromFBComment(row['title'])
@@ -109,7 +115,7 @@ class FacebookInterpreter(baseInterpreter):
                 else:
                     continue
 
-                row['timestamp'] = pd.to_datetime(row['timestamp'])
+                row['timestamp'] = dt.fromtimestamp(row['timestamp'])
 
                 if 'attachments' in row.keys():
                     row['attachments'] = [attach['data'] for attach in row['attachments']]
@@ -121,23 +127,11 @@ class FacebookInterpreter(baseInterpreter):
 
                 if 'title' in row.keys():
                     action, location = extractContextFromFBPosts(row['title'])
-
                     row['action'] = action
                     row['location'] = location
-                    '''
-                    print(row['title'])
-                    print(f'{action}  {location}')
-                    print('-------')
-                    '''
-
                 else:
                     row['action'] = None
                     row['location'] = None
-                    ''''
-                    print('=========')
-                    print(row['post'])
-                    print('=========')
-                    '''
 
                 data.append(row)
             except Ignore:
@@ -149,12 +143,18 @@ class FacebookInterpreter(baseInterpreter):
     def _addPosts(self):
         for row in self.originalData['your_posts']:
             try:
+                if len(row['attachments'])==0 and len(row['tags'])==0 and row['post']=='':
+                    continue
+
                 newDataPoint = {
                     'platform': 'Facebook',
                     'timestamp': row['timestamp'],
                     'type': 'Post',
+                    'body': row['post'],
                     'action': row['action'],
                     'location': row['location'],
+                    'attachments': row['attachments'],
+                    'mentions': row['tags'],
                 }
                 self.data.append(newDataPoint)
             except Exception as ex:
@@ -163,11 +163,25 @@ class FacebookInterpreter(baseInterpreter):
     # ----
 
     def _processEvents(self):
+        data = []
         for row in self.originalData['your_event_responses']:
             try:
-                row['timestamp'] = pd.to_datetime(row['timestamp'])
+                row['start_timestamp'] = dt.fromtimestamp(row['start_timestamp'])
+                row['name'] = row['name']
+
+                if 'place' in row.keys():
+                    row['place'] = row['place']['name']
+                else:
+                    row['place'] = None
+
+                if 'end_timestamp' in row.keys() and row['end_timestamp'] != 0:
+                    row['end_timestamp'] = dt.fromtimestamp(row['end_timestamp'])
+                else:
+                    row['end_timestamp'] = None
+                data.append(row)
             except Exception as ex:
                 print(traceback.format_exc())
+        return data
 
     def _addEvents(self):
         for row in self.originalData['your_event_responses']:
@@ -176,13 +190,13 @@ class FacebookInterpreter(baseInterpreter):
                     'platform': 'Facebook',
                     'timestamp': row['start_timestamp'],
                     'type': 'Event',
-                    'location': row['place'] if 'place' in row.keys() else None,
+                    'name': row['name'],
+                    'location': row['place'],
                     'endTimestamp': row['end_timestamp'],
                 }
                 self.data.append(newDataPoint)
             except Exception as ex:
                 print(traceback.format_exc())
-
     # ----
 
     def _processSearches(self):
@@ -197,7 +211,8 @@ class FacebookInterpreter(baseInterpreter):
                 else:
                      payload = row['data'][0]['text']
                 row['data'] = payload
-                row['timestamp'] = pd.to_datetime(row['timestamp'])
+                row['timestamp'] = dt.fromtimestamp(row['timestamp'])
+                r=1
 
             except Exception as ex:
                 print(traceback.format_exc())
