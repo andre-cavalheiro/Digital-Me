@@ -1,12 +1,13 @@
 import traceback
 from os.path import join
+import logging
 
 import pandas as pd
 from pymongo import MongoClient
 import json
 
 from interpreters.base import baseInterpreter
-from libs.actionPayloadUtils import dropByPercentageJSON, detectAndExtractSubstrings, fromDictToDf
+from libs.utilsInitialProcessing import dropByPercentageJSON, detectAndExtractSubstrings, fromDictToDf
 from libs.customExceptions import NoYtChannel
 
 class YoutubeInterpreter(baseInterpreter):
@@ -27,7 +28,7 @@ class YoutubeInterpreter(baseInterpreter):
             data = json.load(f)
 
         if self.debug:
-            print('Dropping 90% DF')
+            logging.warning('Dropping 90% DF')
             data, _ = dropByPercentageJSON(data, 0.9)
 
         self.originalData = data
@@ -83,4 +84,4 @@ class YoutubeInterpreter(baseInterpreter):
             except NoYtChannel:
                 pass
             except Exception as ex:
-                print(traceback.format_exc())
+                logging.error(traceback.format_exc())

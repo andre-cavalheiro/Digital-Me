@@ -6,7 +6,7 @@ import pandas as pd
 from pymongo import MongoClient
 
 from interpreters.base import baseInterpreter
-from libs.actionPayloadUtils import dropByPercentageJSON, detectAndExtractSubstrings, cleanUrl
+from libs.utilsInitialProcessing import dropByPercentageJSON, detectAndExtractSubstrings, cleanUrl
 from libs.customExceptions import NoMatch
 
 class GoogleInterpreter(baseInterpreter):

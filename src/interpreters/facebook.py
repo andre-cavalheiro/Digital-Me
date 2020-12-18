@@ -5,7 +5,7 @@ from datetime import datetime as dt
 
 import pandas as pd
 from pymongo import MongoClient
-from libs.actionPayloadUtils import dropByPercentageJSON, extractContextFromFBComment, extractContextFromFBPosts, parseObj
+from libs.utilsInitialProcessing import dropByPercentageJSON, extractContextFromFBComment, extractContextFromFBPosts, parseObj
 from libs.customExceptions import Ignore
 
 from interpreters.base import baseInterpreter

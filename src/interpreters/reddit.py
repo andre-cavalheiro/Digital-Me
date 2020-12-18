@@ -5,7 +5,7 @@ import pandas as pd
 from pymongo import MongoClient
 
 from interpreters.base import baseInterpreter
-from libs.actionPayloadUtils import dropByPercentageDF
+from libs.utilsInitialProcessing import dropByPercentageDF
 
 class RedditInterpreter(baseInterpreter):
 

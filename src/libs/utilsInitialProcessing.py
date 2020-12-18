@@ -1,6 +1,9 @@
+import logging
+
 import pandas as pd
-from libs.customExceptions import NoMatch, UnexpectedFBComment, Ignore, UnexpectedFBPost
 import tldextract
+
+from libs.customExceptions import NoMatch, UnexpectedFBComment, Ignore, UnexpectedFBPost
 
 
 def dropByPercentageJSON(data, percentage):
@@ -41,7 +44,7 @@ def fromDictToDf(data):
         except StopIteration:
             break
         except Exception as ex:
-            print(ex)
+            logging.error(ex)
 
     df = df.reset_index(drop=True)
     return df
