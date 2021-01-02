@@ -38,7 +38,6 @@ class GoogleInterpreter(baseInterpreter):
 
         for row in self.originalData:
             row['time'] = pd.to_datetime(row['time'])
-            r=1
 
     def transform(self, termsToIgnore):
 
@@ -80,7 +79,6 @@ class GoogleInterpreter(baseInterpreter):
                     raise Exception(f'Unknown content type: {contentType}')
 
                 self.data.append(newDataPoint)
-
 
             except NoMatch:
                 continue

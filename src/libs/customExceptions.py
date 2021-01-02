@@ -12,3 +12,6 @@ class UnexpectedFBPost(Exception):
 
 class Ignore(Exception):
     pass
+
+class conflictingQIDs(Exception):
+    pass

@@ -1,12 +1,14 @@
 import traceback
 import logging
+import string
+import random
 
 import pandas as pd
 from pymongo import MongoClient
 from rosette.api import API, DocumentParameters, RosetteException
 import bisect
 
-from libs.mongoLib import getPayloadDfFromDB, sendEntitiesToDB
+from libs.mongoLib import getPayloadDfFromDB, updateContentDocsWithRawEntities
 
 platforms = {
     'Google Search': {
@@ -31,8 +33,6 @@ platforms = {
         'Query': ['query'],
     }
 }
-
-
 
 
 def generateDocuments(df, maxCharsPerDoc):
@@ -107,15 +107,31 @@ def attachEntitiesToPayload(entities, df):
     return df
 
 
+def idGenerator(size, chars=string.digits):
+    return 'F' + ''.join(random.choice(chars) for _ in range(size))
+
+
+def randID(entities, idSize):
+    for entity in entities:
+        if not entity['entityId'].startswith('Q'):
+            entity['entityId'] = idGenerator(idSize)
+    return entities
+
+
 if __name__ == '__main__':
 
     maxChars = 45000
+    idSize = 6
+
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
 
     # DB client
     client = MongoClient()
     db = client['digitalMe']
     collection = db['content']
 
+    logging.info(f'Loading payloads from DB')
     df = getPayloadDfFromDB(collection, platforms)
     docs, df = generateDocuments(df, maxChars)
 
@@ -125,13 +141,16 @@ if __name__ == '__main__':
     logging.info(f'Created {len(docs)} documents')
     for it, doc in enumerate(docs):
 
-        docDf = df.loc[df['doc'] == 1].reset_index(drop=True)
+        docDf = df.loc[df['doc'] == it].reset_index(drop=True)
 
         # Extract entities
         extractedEntities = extractEntities(rosetteClient, doc)
 
+        # Provide ID for the ones who aren't linked
+        extractedEntities = randID(extractedEntities, idSize)
+
         docDf = attachEntitiesToPayload(extractedEntities, docDf)
 
-        sendEntitiesToDB(collection, docDf)
+        updateContentDocsWithRawEntities(collection, docDf)
 
-        logging.info(f'{it} done')
+        logging.info(f'Done with iteration {it} - {len(extractedEntities)} entities extracted')
