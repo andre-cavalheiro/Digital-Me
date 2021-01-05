@@ -15,3 +15,6 @@ class Ignore(Exception):
 
 class conflictingQIDs(Exception):
     pass
+
+class ContentWithMultipleLocations(Exception):
+    pass

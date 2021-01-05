@@ -122,9 +122,9 @@ def extractContextFromFBPosts(text):
 
             elif action == 'commented':
                 return action, None
-
             elif action == 'wrote':
-                text4 = text3.split("\'s timeline")[0:-1]
+                text4 = text3.split("\'s timeline")[0:-1]   # Get friend's full name
+                text4 = text4[0] # Revert list form to string
                 return 'wrote on friend\'s timeline', text4
 
             elif action == 'reviewed' or action == 'updated' or action == 'added':

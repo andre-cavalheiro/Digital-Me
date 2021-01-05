@@ -12,7 +12,7 @@ from interpreters.facebook import FacebookInterpreter
 platforms = {
     'Facebook': {
         'class': FacebookInterpreter,
-        'file': ['Facebook/your_event_responses.json', 'Facebook/your_posts.json',
+        'file': ['Facebook/your_posts.json', 'Facebook/your_event_responses.json',
                  'Facebook/your_search_history.json', 'Facebook/comments.json'],
         'termsToIgnore': [],
     },
@@ -53,7 +53,9 @@ if __name__ == '__main__':
             interpreter.load(baseDir, info['file'])
             interpreter.preProcess()
             interpreter.transform(info['termsToIgnore'])
-            interpreter.storeInDB(collection)
+            minDate, maxDate = interpreter.getMinMaxTime()
+            print(f'History from {minDate} to {maxDate}')
+            # interpreter.storeInDB(collection)
 
         except Exception as ex:
             print(traceback.format_exc())

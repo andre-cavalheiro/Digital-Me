@@ -64,6 +64,7 @@ class TwitterInterpreter(baseInterpreter):
                 dataPoint['favorite_count'] = int(dataPoint['favorite_count'])
 
                 tweetsData.append(dataPoint)
+
             except Exception as ex:
                 print(traceback.format_exc())
 

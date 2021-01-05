@@ -26,3 +26,13 @@ class baseInterpreter():
         except Exception as ex:
             print(traceback.format_exc())
 
+    def getMinMaxTime(self):
+        minDate, maxDate = None, None
+        for d in self.data:
+            if minDate is None and maxDate is None:
+                minDate = d['timestamp']
+                maxDate = d['timestamp']
+            else:
+                minDate = d['timestamp'] if minDate > d['timestamp'] else minDate
+                maxDate = d['timestamp'] if maxDate < d['timestamp'] else maxDate
+        return minDate, maxDate

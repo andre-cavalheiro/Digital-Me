@@ -8,7 +8,7 @@ from pymongo import MongoClient
 from rosette.api import API, DocumentParameters, RosetteException
 import bisect
 
-from libs.mongoLib import getPayloadDfFromDB, updateContentDocsWithRawEntities
+from libs.mongoLib import getPayloadsDfFromDB, updateContentDocsWithRawEntities
 
 platforms = {
     'Google Search': {
@@ -51,7 +51,6 @@ def generateDocuments(df, maxCharsPerDoc):
         if len(docs[docIndx])+size > maxCharsPerDoc:
             docs.append('')
             docIndx += 1
-
 
         df.at[index, 'doc'] = docIndx
         df.at[index, 'index-range'] = [len(docs[docIndx]), len(docs[docIndx])+size]
@@ -132,7 +131,7 @@ if __name__ == '__main__':
     collection = db['content']
 
     logging.info(f'Loading payloads from DB')
-    df = getPayloadDfFromDB(collection, platforms)
+    df = getPayloadsDfFromDB(collection, platforms)
     docs, df = generateDocuments(df, maxChars)
 
     # Rosette client

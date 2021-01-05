@@ -64,8 +64,9 @@ class FacebookInterpreter(baseInterpreter):
             try:
                 dataPoint = row['data'][0]['comment']
 
+                if dt.fromtimestamp(dataPoint['timestamp']).year > 2020:
+                    breakpoint()
                 dataPoint['timestamp'] = dt.fromtimestamp(dataPoint['timestamp'])
-
                 if 'comment' not in dataPoint.keys():
                     dataPoint['comment'] = ''   # Comments without any text (just attachments)
                 else:
@@ -115,6 +116,8 @@ class FacebookInterpreter(baseInterpreter):
                 else:
                     continue
 
+                if dt.fromtimestamp(row['timestamp']).year > 2020:
+                    breakpoint()
                 row['timestamp'] = dt.fromtimestamp(row['timestamp'])
 
                 if 'attachments' in row.keys():
@@ -166,6 +169,10 @@ class FacebookInterpreter(baseInterpreter):
         data = []
         for row in self.originalData['your_event_responses']:
             try:
+                if dt.fromtimestamp(row['start_timestamp']).year > 2020:
+                    breakpoint()
+                row['timestamp'] = dt.fromtimestamp(row['timestamp'])
+
                 row['start_timestamp'] = dt.fromtimestamp(row['start_timestamp'])
                 row['name'] = row['name']
 
@@ -211,6 +218,9 @@ class FacebookInterpreter(baseInterpreter):
                 else:
                      payload = row['data'][0]['text']
                 row['data'] = payload
+
+                if dt.fromtimestamp(row['timestamp']).year > 2020:
+                    breakpoint()
                 row['timestamp'] = dt.fromtimestamp(row['timestamp'])
                 r=1
 

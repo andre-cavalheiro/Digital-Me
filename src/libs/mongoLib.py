@@ -5,7 +5,7 @@ import pandas as pd
 from pandas.io.json import json_normalize
 
 
-def getPayloadDfFromDB(collection, platforms):
+def getPayloadsDfFromDB(collection, platforms):
     '''
     :param collection: collection client
     :param platforms: Dictionary, platform names: array(attributes to access)
@@ -29,13 +29,21 @@ def getPayloadDfFromDB(collection, platforms):
     return df
 
 
-def getContentPerPlatform(collection, platforms):
+def getContentDocsPerPlatform(collection, platforms):
+    '''
+    :param collection: collection client
+    :param platforms: list of platforms from which content documents are desired
+    :return: generator - if necessary to convert to a list just list(content). Generator better for large results
+    '''
     content = collection.find({'platform': {'$in': platforms}})
     return content
 
 
 def getContentDocsWithEntities(collection):
-
+    '''
+    :param collection:
+    :return: pd.DataFrame
+    '''
     results = collection.find({'extractedEntities': {'$exists': True, '$ne': []}})
     df = pd.json_normalize(results)
     df = df[['_id', 'extractedEntities']]
@@ -56,8 +64,31 @@ def getContentDocsWithEntities(collection):
     return df
 
 
-def updateContentDocsWithRawEntities(collection, docDf):
+def getAllDocs(collection):
+    results = collection.find({})
+    return results
 
+
+def getMinMaxDay(collection):
+    results = collection.aggregate([
+        {
+            "$group": {
+                    "_id": "minMaxDate",
+                    "maxDate": {"$max": "$timestamp"},
+                    "minDate": {"$min": "$timestamp"},
+            }
+        }
+    ])
+    results = list(results)[0]
+    return results['minDate'].date(), results['maxDate'].date()
+
+
+
+def updateContentDocsWithRawEntities(collection, docDf):
+    '''
+    :param collection: collection client
+    :param docDf: pd.DataFrame
+    '''
     for index, row in docDf.iterrows():
         instanceId = row['id']
         collection.update_one(
@@ -66,12 +97,15 @@ def updateContentDocsWithRawEntities(collection, docDf):
         )
 
 
-def updateContentDocsWithTags(collection, entityInfo, entityIds):
-
-    for info, entityId in zip(entityInfo, entityIds):
-        for contentDoc in info['associatedContent']:
-            collection.update_one(
-                {"_id": contentDoc},
-                {"$addToSet": {"tags": entityId}}     # If exists append, else create
-            )
+def updateContentDocs(collection, key, contentDocsPayload):
+    '''
+    :param collection: collection client
+    :param entityInfo: list
+    :param entityIds: list
+    '''
+    for k, v in contentDocsPayload.items():
+        collection.update_one(
+            {"_id": k},
+            {"$set": {key: v}}
+        )
 

@@ -4,7 +4,8 @@ from pymongo import MongoClient
 import pandas as pd
 from pandas.io.json import json_normalize
 
-from libs.mongoLib import updateContentDocsWithTags, getContentDocsWithEntities
+from libs.mongoLib import updateContentDocs, getContentDocsWithEntities
+
 
 def standardizeIds(df):
 
@@ -64,25 +65,36 @@ def prepareEntityCollection(df):
 
 if __name__ == '__main__':
 
-    client = MongoClient()
-    db = client['digitalMe']
-    collectionCont = db['content']
-    collectionEnt = db['entities']
+    try:
 
-    # Query DB for content with extracted entities
-    df = getContentDocsWithEntities(collectionCont)
+        client = MongoClient()
+        db = client['digitalMe']
+        collectionCont = db['content']
+        collectionEnt = db['entities']
 
-    # Ensure entities with equal names have the same ID
-    df = standardizeIds(df)
+        # Query DB for content with extracted entities
+        df = getContentDocsWithEntities(collectionCont)
 
-    # Prepare data for DB
-    df.set_index('entityId', inplace=True)
-    entityCollectionData = prepareEntityCollection(df)
+        # Ensure entities with equal names have the same ID
+        df = standardizeIds(df)
 
-    # Save it to DB
-    insertedDocs = collectionEnt.insert_many(entityCollectionData)
-    insertedIds = insertedDocs.inserted_ids
+        # Prepare data for DB
+        df.set_index('entityId', inplace=True)
+        entityCollectionData = prepareEntityCollection(df)
 
-    # Update content docs with tags
-    df.reset_index().set_index('_id', inplace=True)
-    updateContentDocsWithTags(collectionCont, entityCollectionData, insertedIds)
+        # Save it to DB
+        insertedDocs = collectionEnt.insert_many(entityCollectionData)
+        insertedIds = insertedDocs.inserted_ids
+
+        # Update content docs with tags
+        contentDocsPayload = {}
+        for info, entityId in zip(entityCollectionData, insertedIds):
+            for contentDoc in info['associatedContent']:
+                if contentDoc not in contentDocsPayload.keys():
+                    contentDocsPayload[contentDoc] = [entityId]
+                else:
+                    contentDocsPayload[contentDoc].append(entityId)
+        updateContentDocs(collectionCont, 'tags', contentDocsPayload)
+
+    except Exception as ex:
+        print(traceback.format_exc())
