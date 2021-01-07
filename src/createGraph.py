@@ -4,9 +4,11 @@ from os.path import join
 from datetime import date, timedelta, datetime
 
 import networkx as nx
-from pymongo import MongoClient
 import pandas as pd
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 
+import libs.networkAnalysis as na
 from libs.mongoLib import getContentDocsPerPlatform, getAllDocs, getMinMaxDay
 
 
@@ -20,7 +22,6 @@ def getGraphRequirments(collectionEnt, collectionLoc, collectionCont, platforms,
     temporalPeriod = [minDay + timedelta(days=x) for x in range((maxDay - minDay).days + 1)]
 
     if timeLimits is not None:
-        #t todo test mek,.,
         logging.info(f'Limiting time from {timeLimits[0]} to {timeLimits[1]}')
         temporalPeriod = [d for d in temporalPeriod if d.year>=timeLimits[0] and d.year<=timeLimits[1]]
         originalContentLen = len(contentList)
@@ -41,51 +42,31 @@ def createGraphNodes(G, nodesPerClass):
     return G
 
 
-def createGraphEdges(G, contentList, nodesPerClass):
-    for c in contentList:
-        try:
-            interactionDay = c['timestamp'].date()
-            assert(interactionDay in nodesPerClass['time'])
-            newEdges = [(c['_id'], interactionDay)]     # Day - Content
-
-            if 'origin' in c.keys():
-                location = c['origin']
-                assert(location in nodesPerClass['location'])
-                newEdges += [(c['_id'], location)]     # Content - Location
-
-            if 'tags' in c.keys():
-                tags = c['tags']
-                assert(len([t for t in tags if t in nodesPerClass['tag']]) == len(tags))
-                newEdges += [(c['_id'], t) for t in tags]        # Content - Tag
-
-            G.add_edges_from(newEdges)
-
-        except Exception as ex:
-            print(traceback.format_exc())
-            breakpoint()
-    return G
-
-
-def createGraphEdgesFaster(G, contentDf, nodesPerClass):
+def createGraphEdges(G, temporalPeriod, contentDf, nodesPerClass):
     try:
-        # (Day)-(content) edges
-        timeDf = contentDf['timestamp'].dt.normalize()
-        timeEdges = list(timeDf.items())
+        # (Day)-(Day)
+        timeEdges = [(temporalPeriod[i], temporalPeriod[i+1]) for i in range(len(temporalPeriod)-1)]
+        
+        # (Day)-(Content) edges
+        timeDf = contentDf['timestamp']
+        timestampEdges = list(timeDf.items())
+        # Make sure every tail is already a node in the graph
+        assert(len([e[1] for e in timestampEdges if e[1] not in nodesPerClass['time']]) == 0)
 
-        # (content)-Location edges
+        # (content)-(Location) edges
         locationDf = contentDf['origin'].dropna()
         locationEdges = list(locationDf.items())
+        assert(len([e[1] for e in locationEdges if e[1] not in nodesPerClass['location']]) == 0)
 
-        # (content-tags) edges
+        # (Content)-(Tags) edges
         tagDf = contentDf['tags'].dropna()
-        tagDf = tagDf.apply(pd.Series).reset_index()
-        tagDf = tagDf.melt(id_vars='_id')
-        tagDf = tagDf.dropna()[['_id', 'value']]
-        tagDf = tagDf.set_index('_id')
-        tagDf = tagDf['value']
+        tagDf = tagDf.apply(pd.Series).reset_index().melt(id_vars='_id').dropna()[['_id', 'value']].set_index('_id')['value']
         tagEdges = list(tagDf.items())
+        assert(len([e[1] for e in tagEdges if e[1] not in nodesPerClass['tag']]) == 0)
 
+        # Add them all to the graph
         G.add_edges_from(timeEdges)
+        G.add_edges_from(timestampEdges)
         G.add_edges_from(locationEdges)
         G.add_edges_from(tagEdges)
 
@@ -95,20 +76,26 @@ def createGraphEdgesFaster(G, contentDf, nodesPerClass):
     return G
 
 
-def addNodeAttribute(G, data, platform=False):
+def addNodeAttributes(G, data, platform=False, contentType=False):
     if platform is True:
-        # Content nodes
+        # Regarding content nodes
         assert('contentDf' in data.keys())
         platformPerIdCont = data['contentDf']['platform'].to_dict()
-        # Location nodes
+
+        # Regarding location nodes
         assert('locationDf' in data.keys())
         platformPerIdLoc = data['locationDf']['platform'].to_dict()
 
-        # Make sure keys don't colide - this shouldn't be possible (IDs from content nodes != IDS from location nodes)
+        # Make sure keys don't collide - this shouldn't be possible (IDs from content nodes != IDS from location nodes)
         assert(len([x for x in platformPerIdCont.keys() if x in platformPerIdLoc.keys()]) == 0)
 
         platformPerIdCont.update(platformPerIdLoc)
         nx.set_node_attributes(G, platformPerIdCont, 'platform')
+
+    if contentType is True:
+        assert('contentDf' in data.keys())
+        contentType = data['contentDf']['type'].to_dict()
+        nx.set_node_attributes(G, contentType, 'contentType')
 
     return G
 
@@ -128,7 +115,7 @@ if __name__ == '__main__':
     # Storing Params
     saveToMongo, saveToOS, sendToNeo4j = True, True, True
     # Data to include
-    includePlatform = True
+    includePlatform, includeContentType = True, True
 
     # Make sure we're only acquiring from one source
     assert(sum(1 for item in [create, loadFromMongo, loadFromOS, loadFromNeo4j] if item) == 1)
@@ -141,7 +128,6 @@ if __name__ == '__main__':
         collectionLoc = db['locations']
 
         if create is True:
-            # Creat the graph from nothing
             logging.info(f'Creating graph from nothing')
 
             data = getGraphRequirments(collectionEnt, collectionLoc, collectionCont, platforms, timeLimits=(minYear, maxYear))
@@ -153,20 +139,24 @@ if __name__ == '__main__':
             }
             logging.info(f'Data acquired, creating graph (temporal period: {data["temporalPeriod"][0]} -> {data["temporalPeriod"][-1]})')
 
-            data['contentDf'] = pd.DataFrame(data['contentList'])
-            data['contentDf'].set_index('_id', inplace=True)
+            # Transform lists to dataframe for faster operations
+            data['contentDf'] = pd.DataFrame(data['contentList']).set_index('_id')
+            data['contentDf'].timestamp = data['contentDf'].timestamp.dt.date
+            data['locationDf'] = pd.DataFrame(data['locationsList']).set_index('_id')
 
+            # Creat the graph
             G = nx.Graph()
             G = createGraphNodes(G, nodesPerClass)
             logging.info(f'Graph with {G.number_of_nodes()} nodes')
-            # G = createGraphEdges(G, data['contentList'], nodesPerClass)
-            G = createGraphEdgesFaster(G, data['contentDf'], nodesPerClass)
+            G = createGraphEdges(G, data['temporalPeriod'], data['contentDf'], nodesPerClass)
             logging.info(f'Graph with {G.number_of_edges()} edges')
 
-            if includePlatform is True:
-                data['locationDf'] = pd.DataFrame(data['locationsList'])
-                data['locationDf'].set_index('_id', inplace=True)
-                G = addNodeAttribute(G, data, platform=True)
+            # Ensure we have a single component
+            # Since we are limiting time, we may include some nodes (tags/locations) that are connected to content nodes
+            # which don't end up in the graph. This solves this - todo
+            G = na.getOnlyConnectedGraph(G)
+
+            G = addNodeAttributes(G, data, platform=includePlatform, contentType=includeContentType)
 
         else:
             if loadFromMongo is True:
