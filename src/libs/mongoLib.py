@@ -63,6 +63,34 @@ def getContentDocsWithEntities(collection):
 
     return df
 
+def getContentDocsWithInherentTags(collection, attrPerContentType):
+    outputDf = None
+
+    for platform, dt in attrPerContentType.items():
+        for contentType, attrs in dt.items():
+            if attrs is None:
+                continue
+
+            for attr in attrs:
+                results = collection.find({'platform': platform, 'type': contentType, attr: {'$exists': True}})
+                df = pd.json_normalize(results)
+
+                # Assuming these attributes hold arrays - unroll into several rows
+                auxdf = df[attr].apply(pd.Series).reset_index()
+                auxdf = auxdf.melt(id_vars='index')
+                auxdf = auxdf.dropna()[['index', 'value']]
+                auxdf = auxdf.set_index('index')
+                df = pd.merge(auxdf, df[['_id']], left_index=True, right_index=True)
+                df.reset_index(inplace=True, drop=True)
+                df.rename({'value': 'normalized'}, axis=1, inplace=True)
+
+                if outputDf is None:
+                    outputDf = df
+                else:
+                    outputDf = outputDf.append(df)
+
+    return outputDf
+
 
 def getAllDocs(collection):
     results = collection.find({})

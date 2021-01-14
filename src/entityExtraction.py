@@ -10,6 +10,7 @@ import bisect
 
 from libs.mongoLib import getPayloadsDfFromDB, updateContentDocsWithRawEntities
 
+# todo - transform this into config file
 platforms = {
     'Google Search': {
         'Query': ['query'],
@@ -27,10 +28,10 @@ platforms = {
         'Tweet': ['body']
     },
     'Facebook': {
-        'Comment': ['body'],
-        'Post': ['body'],
-        'Event': ['name'],
-        'Query': ['query'],
+        #'Comment': ['body'],
+        #'Post': ['body'],
+        #'Event': ['name'],
+        #'Query': ['query'],
     }
 }
 
@@ -74,7 +75,7 @@ def extractEntities(rosetteClient, doc):
 
     except RosetteException as ex:
         if ex.status == 'overPlanLimit':
-            logging.error('REACHED TODAY\'S MAXIMUM')
+            logging.error('REACHED TODAY\'S MAXIMUM (or account has reach limit)')
             exit()
         logging.error('> [Error] Problem in rosette')
         logging.error(traceback.format_exc())
@@ -135,7 +136,7 @@ if __name__ == '__main__':
     docs, df = generateDocuments(df, maxChars)
 
     # Rosette client
-    rosetteClient = API(user_key='83ae01e826896d296a3a8d29b841eef3')
+    rosetteClient = API(user_key='4cc63b31af87b2e30ae15f511483ccd5')
 
     logging.info(f'Created {len(docs)} documents')
     for it, doc in enumerate(docs):

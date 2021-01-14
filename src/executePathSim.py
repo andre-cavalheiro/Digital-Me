@@ -39,13 +39,12 @@ if __name__ == '__main__':
 
         # Get node list to avoid dictionaries' underterministic stuff
         nodes = list(G.nodes())
-        r = 2
 
         # Get incidence matrices between any node types
         incidenceMatrix = nx.incidence_matrix(G, nodelist=nodes)
         incidenceMatrices = {}
 
-        for (headClass, tailClass) in classCombinations:
+        for (headClass, tailClass) in classCombinations[2:]:    # FIXME
 
             incidenceM = incidenceMatrix.copy()
 
@@ -59,9 +58,7 @@ if __name__ == '__main__':
             logging.info(f'Incidence shape: f{incidenceM.shape}, supposed to be {len(nodesPerClass[headClass]), len(nodesPerClass[tailClass])}')
 
             incidenceMatrices[(headClass, tailClass)] = incidenceM
-            np.save('incidenceMatricesAsWeGo.npy', incidenceMatrices)
-
-        np.save('incidenceMatrices.npy', incidenceMatrices)
+            np.save(f'incidence_{headClass}-{tailClass}.npy', incidenceM)
 
     except Exception as ex:
         print(traceback.format_exc())

@@ -82,6 +82,7 @@ class YoutubeInterpreter(baseInterpreter):
                 self.data.append(newDataPoint)
 
             except NoYtChannel:
-                pass
+                continue
+
             except Exception as ex:
                 logging.error(traceback.format_exc())

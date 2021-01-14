@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import tldextract
 
-from libs.customExceptions import NoMatch, UnexpectedFBComment, Ignore, UnexpectedFBPost
+from libs.customExceptions import NoMatch, UnexpectedFBComment, Ignore, UnexpectedFBPost, NothingToDo
 
 
 def dropByPercentageJSON(data, percentage):
@@ -73,68 +73,118 @@ def extractContextFromFBComment(text):
                 author = remainingText[0]
                 type = remainingText[-1].capitalize()[:-1]  # Set first char to upper case, remove final dot
 
-            """
-            if ' post' in text2:
-                author = text2.split("\'s post.")[0] if 'his own' not in text2 else 'self'
-                type = 'Post'
-            elif ' comment' in text2:
-                author = text2.split("\'s comment.")[0] if 'his own' not in text2 else 'self'
-                type = 'Comment'
-            elif ' photo' in text2:
-                author = text2.split("\'s photo.")[0] if 'his own' not in text2 else 'self'
-                type = 'photo'
-            elif ' photo' in text2:
-                author = text2.split("\'s photo.")[0] if 'his own' not in text2 else 'self'
-                type = 'photo'
-            elif ' video' in text2:
-                author = text2.split("\'s photo.")[0] if 'his own' not in text2 else 'self'
-                type = 'video'
-            else:
-                raise UnexpectedFBComment
-            """
-
-            return type, author
+            return type.strip(), 'Commented', author.strip()
     raise NoMatch
 
 
-def extractContextFromFBPosts(text):
-    for action in ['posted', 'shared', 'updated', 'was with', 'reviewed', 'updated', 'created a poll',
-                   'wrote', 'added', 'likes', 'commented']:
+def extractContextFromFbSelfPosts(text):
+    '''
+
+    :param text:
+    :return: (actionPerformedByUser, targetContentType, facebookLocation, extraTags)
+    '''
+    for action in ['posted', 'shared', 'updated', 'created a poll', 'wrote', 'likes', 'commented',
+                   'added', 'reviewed', 'updated', 'was with']:
         if action in text:
-            text2 = text.split(action)[-1]  # Drop useless stuff from the beggining
+            text2 = text.split(action)[-1]  # Drop useless stuff from the beginning
             text3 = text2.split(' ')[2:]    # Drop preposition 'in', 'on', 'a' ...
             text3 = ' '.join(text3).capitalize()[:-1]  # Set first char to upper case, remove final dot
             r=1
+
             if action == 'posted':
-                return action, text3
+                return action.capitalize().strip(), 'Post', text3.strip(), []
 
             elif action == 'shared':
-                return action, 'Timeline'   # text3 contains type of content that was shared> link, image, post ...
+                if 'timeline' in text3:
+                    contentType = text3.split(' ')[0]
+                    friend = ' '.join(text3.split(' ')[2:]).split("\'s timeline")[0:-1][0]
+                    friendTimeline = ' '.join(text3.split(' ')[2:])
+                    return action.capitalize().strip(), contentType.strip(), friendTimeline.strip(), [friend.title().strip()]
+                else:
+                    return action.capitalize().strip(), text3.strip(), 'Self Timeline', []
 
-            elif action == 'was with':
-                return action, text2    # text2 !!
+            elif action == 'wrote':
+                friend = text3.split("\'s timeline")[0:-1][0]   # Get friend's full name
+                return 'Posted', 'Post', text3.strip(), [friend.title().strip()]
 
             elif action == 'created a poll':
-                return action, text3
+                breakpoint()
+                return action.capitalize().strip(), 'Poll', text3.strip(), []
 
-            elif action == 'likes':
-                return action, None
+            elif action == 'updated' or action == 'was with':
+                # raise NothingToDo
+                return 'Posted', 'Post', 'Self Timeline', []
 
-            elif action == 'commented':
-                return action, None
-            elif action == 'wrote':
-                text4 = text3.split("\'s timeline")[0:-1]   # Get friend's full name
-                text4 = text4[0] # Revert list form to string
-                return 'wrote on friend\'s timeline', text4
-
-            elif action == 'reviewed' or action == 'updated' or action == 'added':
-                raise Ignore
+            elif action == 'reviewed' or action == 'added' or action == 'commented' or action == 'likes':
+                raise Ignore    # Some of these have actual value but too complex for the initial phase
+                # Comments, or likes shouldn't be in this dataset - required investigation to understand how they work.
 
             else:
                 raise Exception('Implementation error here')
     raise NoMatch
 
-    return text
+
+def extractContextFromFbOthersPosts(text):
+    '''
+
+    :param text:
+    :return: (actionPerformedByUser, targetContentType, facebookLocation, targetContentAuthor)
+    '''
+    for action in ['shared', 'wrote', 'added', 'reviewed', 'updated', 'was with']:
+        if action in text:
+            aux = text.split(action)
+            author, text2 = aux[0], aux[-1]
+            text3 = text2.split(' ')[2:]    # Drop preposition 'in', 'on', 'a' ...
+
+            if action == 'shared':
+                contentType = text3[0].capitalize()
+                return action.capitalize().strip(), contentType.strip(), 'Self Timeline', author.title().strip()
+
+            elif action == 'wrote':
+                return action.capitalize().strip(), 'Post', 'Self Timeline', author.title().strip()
+
+            elif action == 'added':
+                # Only usecase in personal database is 'added new photo'
+                contentType = ' '.join(text3[:2]).capitalize()
+                return action.capitalize().strip(), contentType.strip(), 'Self Timeline', author.title().strip()
+
+            elif action == 'reviewed' or action == 'commented' or action == 'likes':
+                raise Ignore    # Some of these have actual value but too complex for the initial phase
+                # Comments, or likes shouldn't be in this dataset - required investigation to understand how they work.
+
+            else:
+                raise Exception('Implementation error here')
+    raise NoMatch
+
+
+def extractContextFromReactions(text):
+    # "Andr\u00c3\u00a9 Cavalheiro likes Miguel Lino's post in SWAMP."
+    r=1
+    for action in ['likes', 'liked', 'reacted']:
+        if action in text:
+            text2 = text.split(action)[-1]  # Drop useless stuff from the beginning
+
+            if len([s for s in [' to a ', ' his own '] if s in text2]) > 0:
+                # 'to a' means there is no info reggarding target content type e.g. '<User> reacted to a post'
+                # 'his own' means user reacted to his own content - not relevant
+                raise Ignore
+
+            if action == 'likes' or action == 'liked' or action == 'reacted':
+                aux = text2.split('\'s')
+                targetContentAuthor, targetContentType = aux[0], aux[-1]
+
+                if ' in ' in targetContentType:
+                    aux = targetContentType.split(' in ')
+                    targetContentType, facebookLocation = aux[0], aux[1]
+                    facebookLocation = facebookLocation.split('.')[0]     # Remove final dot
+                else:
+                    targetContentType = targetContentType.split('.')[0]     # Remove final dot
+                    facebookLocation = None
+                return targetContentType.strip(), targetContentAuthor.strip(), facebookLocation.strip()
+            else:
+                raise Exception('Implementation error here')
+    raise NoMatch
+
 
 def cleanUrl(url):
     '''

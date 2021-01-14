@@ -43,6 +43,18 @@ def createGraphNodes(G, nodesPerClass):
 
 
 def createGraphEdges(G, temporalPeriod, contentDf, nodesPerClass):
+    '''
+    Adds the following types of connections to the graph: 
+        (Day)-(Day)
+        (Day)-(Content)
+        (Content)-(Location)
+        (Content)-(Tags)
+    :param G: 
+    :param temporalPeriod: 
+    :param contentDf: 
+    :param nodesPerClass: 
+    :return: 
+    '''
     try:
         # (Day)-(Day)
         timeEdges = [(temporalPeriod[i], temporalPeriod[i+1]) for i in range(len(temporalPeriod)-1)]
@@ -50,11 +62,13 @@ def createGraphEdges(G, temporalPeriod, contentDf, nodesPerClass):
         # (Day)-(Content) edges
         timeDf = contentDf['timestamp']
         timestampEdges = list(timeDf.items())
+
         # Make sure every tail is already a node in the graph
         assert(len([e[1] for e in timestampEdges if e[1] not in nodesPerClass['time']]) == 0)
 
-        # (content)-(Location) edges
-        locationDf = contentDf['origin'].dropna()
+        # (Content)-(Location) edges
+        locationDf = contentDf['locations'].dropna()
+        locationDf = locationDf.apply(pd.Series).reset_index().melt(id_vars='_id').dropna()[['_id', 'value']].set_index('_id')['value']
         locationEdges = list(locationDf.items())
         assert(len([e[1] for e in locationEdges if e[1] not in nodesPerClass['location']]) == 0)
 
@@ -107,11 +121,11 @@ if __name__ == '__main__':
 
     baseDir = '../data/'
     platforms = ['Facebook', 'Youtube', 'Google Search', 'Reddit', 'Twitter']
-    minYear, maxYear = 2010, 2021
+    minYear, maxYear = 2009, 2021
     # Facebook events force us to require this
 
     # Acquiring params
-    create, loadFromMongo, loadFromOS, loadFromNeo4j = True, False, False, False
+    create, loadFromOS, loadFromMongo, loadFromNeo4j = True, False, False, False
     # Storing Params
     saveToMongo, saveToOS, sendToNeo4j = True, True, True
     # Data to include
@@ -164,6 +178,7 @@ if __name__ == '__main__':
                 pass    # TODO
 
             if loadFromOS is True:
+                logging.info(f'Loading graph from OS')
                 # Load graph from OS
                 G = nx.read_gpickle(join(baseDir, f'graph.gpickle'))
 
@@ -174,10 +189,12 @@ if __name__ == '__main__':
             pass    # TODO
 
         if saveToOS is True:
+            logging.info(f'Saved to OS')
             nx.write_gpickle(G, join(baseDir, f'graph.gpickle'))
 
         if sendToNeo4j is True:
-            pass    # TODO
+            logging.info(f'Saved to neo4j')
+            nx.write_graphml(G,  join(baseDir, f'graph.graphml'))
 
     except Exception as ex:
         print(traceback.format_exc())

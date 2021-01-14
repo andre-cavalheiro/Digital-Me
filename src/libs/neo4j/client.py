@@ -9,12 +9,9 @@ from os.path import join
 thinc.registry.create("neo4jCommunicator")
 
 
-@thinc.registry.neo4jCommunicator("connect.v1")
 def init(address, user, password):
-    def callback():
-        session = connect(address, user, password)
-        return session
-    return callback
+    session = connect(address, user, password)
+    return session
 
 
 @thinc.registry.neo4jCommunicator("saveTriplet.v1")

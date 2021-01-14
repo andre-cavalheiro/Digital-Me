@@ -63,6 +63,11 @@ class TwitterInterpreter(baseInterpreter):
                 dataPoint['retweet_count'] = int(dataPoint['retweet_count'])
                 dataPoint['favorite_count'] = int(dataPoint['favorite_count'])
 
+                # Simplify entitites
+                dataPoint['mentions'] = [u['screen_name'] for u in dataPoint['entities']['user_mentions']]
+                dataPoint['hashtags'] = [h['text'] for h in dataPoint['entities']['hashtags']]
+                dataPoint['urls'] = [u['expanded_url'] for u in dataPoint['entities']['urls']]
+
                 tweetsData.append(dataPoint)
 
             except Exception as ex:
@@ -84,7 +89,10 @@ class TwitterInterpreter(baseInterpreter):
                     'likes': row['favorite_count'],
                     'retweets': row['retweet_count'],
                     'language': row['lang'],
-                    'mentions': row['entities'],
+                    'hashtags': row['hashtags'],
+                    'userMentions': row['mentions'],
+                    'mentionedUrls': row['urls'],
+                    'symbols': row['entities']['symbols'],
                 }
                 self.data.append(newDataPoint)
             except Exception as ex:

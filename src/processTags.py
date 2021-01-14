@@ -1,10 +1,43 @@
 import traceback
+import logging
 
 from pymongo import MongoClient
 import pandas as pd
 from pandas.io.json import json_normalize
+import numpy as np
 
-from libs.mongoLib import updateContentDocs, getContentDocsWithEntities
+from entityExtraction import idGenerator
+from libs.mongoLib import updateContentDocs, getContentDocsWithEntities, getContentDocsWithInherentTags
+
+inherentTagsPerContentType = {
+    'Facebook': {
+        'Comment': None,
+        'Post': None,
+        'Query': None,
+    },
+    'Twitter': {
+        'Tweet': ['hashtags', 'symbols']
+    },
+    'Google Search': {
+        'Query': None,
+        'Webpage': None,
+    },
+    'Youtube': {
+        'Query': None,
+        'Video': None,
+    },
+    'Reddit': {
+        'Comment': None,
+        'Post': None,
+    },
+}
+
+
+def mergeEntitiesAndInherent(entityDf, inherentTagDf, idSize):
+    inherentTagDf['mention'] = inherentTagDf['normalized']
+    inherentTagDf['entityId'] = pd.Series([idGenerator(idSize) for _ in range(inherentTagDf.shape[0])])
+    entityDf = entityDf.append(inherentTagDf, ignore_index=True)
+    return entityDf
 
 
 def standardizeIds(df):
@@ -17,22 +50,24 @@ def standardizeIds(df):
 
     for tag in normalizedTags:
         specificDf = df.loc[df.normalized == tag]
+        conflictingIds = specificDf.entityId.unique()
 
         # If there's only one ID associated with that tag, it's all good.
-        if len(specificDf.entityId.unique()) == 1:
+        if len(conflictingIds) == 1:
             continue
         else:
-            conflictingIds = specificDf.entityId.unique()
             QIDs = [id for id in conflictingIds if id in uniqueQIDs]
 
-            if len(QIDs) == 1:
-                # If there's exactly one QID among the conflicting ones, that one subs the remaining.
-                df.loc[df.normalized == tag].entityId = QIDs[0]
-            elif len(QIDs) == 0:
-                # If there's no QIDs among them choose any of the forged IDs and standardize that one.
+            if len(QIDs) == 0:
+                # If there's no QIDs among the conflicting ones, choose any of the forged IDs and standardize that one.
                 df.loc[df.normalized == tag, 'entityId'] = conflictingIds[0]
+
+            elif len(QIDs) == 1:
+                # If there's exactly one QID among the conflicting ones, that one substitutes the remaining.
+                df.loc[df.normalized == tag, 'entityId'] = QIDs[0]
+
             else:
-                # If there are conflicting QIDs, choose the first one by default but keep the other ones for possible usage
+                # If there are conflicting QIDs, choose the first one by default but keep the other ones for possible ambiguity settlement.
                 df.loc[df.normalized == tag, 'entityId'] = QIDs[0]
                 for index, row in df.loc[df.normalized == tag].iterrows():
                     df.at[index, 'droppedQIDs'] = QIDs
@@ -57,13 +92,21 @@ def prepareEntityCollection(df):
             'normalizedForms': normalizedForms,
             'associatedContent': associatedContent,
         }
+
         if specificDf['droppedQIDs'].notna().any():
             newDataPoint['droppedQIDs'] = specificDf['droppedQIDs'][0]
+
         output.append(newDataPoint)
     return output
 
 
 if __name__ == '__main__':
+
+    # Set up logger
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+
+    idSize = 6
 
     try:
 
@@ -73,14 +116,18 @@ if __name__ == '__main__':
         collectionEnt = db['entities']
 
         # Query DB for content with extracted entities
-        df = getContentDocsWithEntities(collectionCont)
+        entityDf = getContentDocsWithEntities(collectionCont)
 
-        # Ensure entities with equal names have the same ID
-        df = standardizeIds(df)
+        # Query DB for tags inherent to data (not extracted entities)
+        inherentTagDf = getContentDocsWithInherentTags(collectionCont, inherentTagsPerContentType)
+
+        # Ensure entities with equal names have the same QID
+        entityDf = mergeEntitiesAndInherent(entityDf, inherentTagDf, idSize)
+        entityDf = standardizeIds(entityDf)
 
         # Prepare data for DB
-        df.set_index('entityId', inplace=True)
-        entityCollectionData = prepareEntityCollection(df)
+        entityDf.set_index('entityId', inplace=True)
+        entityCollectionData = prepareEntityCollection(entityDf)
 
         # Save it to DB
         insertedDocs = collectionEnt.insert_many(entityCollectionData)
@@ -95,6 +142,8 @@ if __name__ == '__main__':
                 else:
                     contentDocsPayload[contentDoc].append(entityId)
         updateContentDocs(collectionCont, 'tags', contentDocsPayload)
+
+
 
     except Exception as ex:
         print(traceback.format_exc())

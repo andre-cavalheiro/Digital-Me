@@ -4,7 +4,7 @@ import pandas as pd
 import powerlaw     # DOCS: https://pythonhosted.org/powerlaw/
 
 
-def drawBoxPlots(data, xlabels, savingPath, **kargs):
+def drawBoxPlots(data, xlabels, logAxis, savingPath, **kargs):
     # This is lame and ugly, the seaborn ones are much prefered.
     positions = np.arange(len(data)) + 1
 
@@ -13,6 +13,9 @@ def drawBoxPlots(data, xlabels, savingPath, **kargs):
 
     # plt.xticks(positions, xlabels)
     bp = ax.boxplot(data, positions=positions, showmeans=True, **kargs)
+
+    if logAxis is True:
+        ax.set_yscale('log')
 
     ax.set_xticklabels(xlabels, rotation=45, ha='right')
     plt.savefig(savingPath)

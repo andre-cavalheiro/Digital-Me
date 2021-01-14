@@ -1,5 +1,6 @@
 import traceback
 from pymongo import MongoClient
+import logging
 
 class baseInterpreter():
 
@@ -18,6 +19,55 @@ class baseInterpreter():
 
     def transform(self, termsToIgnore):
         raise Exception('Not Implemented')
+
+    def mergeTheSameContent(self, relevantKeysPerContentType):
+        uniqueContent = {}
+        try:
+
+            for it, dataPoint in enumerate(self.data):
+                contentType = dataPoint['type']
+
+                assert(contentType in relevantKeysPerContentType.keys())
+
+                if relevantKeysPerContentType[contentType] is None:
+                    # Unmergable type
+                    continue
+
+                contentKey = tuple([dataPoint[k] for k in relevantKeysPerContentType[contentType]])
+                r=1
+
+                if dataPoint['type'] == 'Video' and dataPoint['title'] == "Knowing bros [Ask Us Anything] Blackpink Ep. 87 English Sub":
+                    r=2
+
+                if contentKey in uniqueContent.keys():
+                    uniqueContent[contentKey].append(it)
+                else:
+                    uniqueContent[contentKey] = [it]
+
+                # Do here to avoid another loop - If we're merging similiar content it might be visited at different times
+                dataPoint['timestamp'] = [dataPoint['timestamp']]
+
+            p=1
+            for contentKey, contantAppearendes in uniqueContent.items():
+
+                if len(contantAppearendes)>1:
+                    # Nullify apearences to drop, while keeping their timestamp
+                    newTimestamps = [self.data[i]['timestamp'] for i in contantAppearendes[1:]]
+                    for i in contantAppearendes[1:]:
+                        self.data[i] = None
+
+                    # Add timestamps to the instance we're keeping
+                    self.data[contantAppearendes[0]]['timestamp'] += newTimestamps
+
+
+        except Exception as ex:
+            print(traceback.format_exc())
+            r = 1
+
+        origLen = len(self.data)
+        self.data = [d for d in self.data if d is not None]
+
+        logging.info(f'Dropped a total of {origLen-len(self.data)} datapoints by merging')
 
     def storeInDB(self, client):
         assert(self.data is not None)
