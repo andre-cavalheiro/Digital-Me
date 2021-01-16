@@ -63,6 +63,7 @@ def getContentDocsWithEntities(collection):
 
     return df
 
+
 def getContentDocsWithInherentTags(collection, attrPerContentType):
     outputDf = None
 
@@ -100,6 +101,12 @@ def getAllDocs(collection):
 def getMinMaxDay(collection):
     results = collection.aggregate([
         {
+            "$unwind": {
+                           "path": '$timestamp',
+                           "preserveNullAndEmptyArrays": False
+           }
+        },
+        {
             "$group": {
                     "_id": "minMaxDate",
                     "maxDate": {"$max": "$timestamp"},
@@ -109,7 +116,6 @@ def getMinMaxDay(collection):
     ])
     results = list(results)[0]
     return results['minDate'].date(), results['maxDate'].date()
-
 
 
 def updateContentDocsWithRawEntities(collection, docDf):

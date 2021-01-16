@@ -23,10 +23,20 @@ def getGraphRequirments(collectionEnt, collectionLoc, collectionCont, platforms,
 
     if timeLimits is not None:
         logging.info(f'Limiting time from {timeLimits[0]} to {timeLimits[1]}')
-        temporalPeriod = [d for d in temporalPeriod if d.year>=timeLimits[0] and d.year<=timeLimits[1]]
-        originalContentLen = len(contentList)
-        contentList = [c for c in contentList if c['timestamp'].year>=timeLimits[0] and c['timestamp'].year<=timeLimits[1]]
-        logging.info(f'Dropped {originalContentLen-len(contentList)} pieces of content')
+        temporalPeriod = [d for d in temporalPeriod if d.year >= timeLimits[0] and d.year <= timeLimits[1]]
+
+        droppedTimestamps, contentToDrop = 0, []
+        for it, c in enumerate(contentList):
+            timestampsToKeep = [t for t in c['timestamp'] if t.year >= timeLimits[0] and t.year <= timeLimits[1]]
+            droppedTimestamps = len(c['timestamp']) - len(timestampsToKeep)
+            if len(timestampsToKeep) == 0:
+                contentToDrop.append(it)
+            else:
+                c['timestamp'] = timestampsToKeep
+
+        contentList = [c for it, c in enumerate(contentList) if it not in contentToDrop]
+        logging.info(f'Dropped {droppedTimestamps} content timestamps (outside of temporal range) - '
+                     f'resulting in deleting {len(contentToDrop)} pieces of content entirely.')
 
     return {
         'contentList': contentList,
@@ -60,7 +70,7 @@ def createGraphEdges(G, temporalPeriod, contentDf, nodesPerClass):
         timeEdges = [(temporalPeriod[i], temporalPeriod[i+1]) for i in range(len(temporalPeriod)-1)]
         
         # (Day)-(Content) edges
-        timeDf = contentDf['timestamp']
+        timeDf = contentDf['timestamp'].apply(pd.Series).reset_index().melt(id_vars='_id').dropna()[['_id', 'value']].set_index('_id')['value']
         timestampEdges = list(timeDf.items())
 
         # Make sure every tail is already a node in the graph
@@ -120,7 +130,7 @@ if __name__ == '__main__':
     root.setLevel(logging.DEBUG)
 
     baseDir = '../data/'
-    platforms = ['Facebook', 'Youtube', 'Google Search', 'Reddit', 'Twitter']
+    platforms = ['Facebook', 'YouTube', 'Google Search', 'Reddit', 'Twitter']
     minYear, maxYear = 2009, 2021
     # Facebook events force us to require this
 
@@ -155,7 +165,8 @@ if __name__ == '__main__':
 
             # Transform lists to dataframe for faster operations
             data['contentDf'] = pd.DataFrame(data['contentList']).set_index('_id')
-            data['contentDf'].timestamp = data['contentDf'].timestamp.dt.date
+            # data['contentDf'].timestamp = data['contentDf'].timestamp.dt.date
+            data['contentDf'].timestamp = data['contentDf'].timestamp.apply(lambda x: [d.date() for d in x])
             data['locationDf'] = pd.DataFrame(data['locationsList']).set_index('_id')
 
             # Creat the graph

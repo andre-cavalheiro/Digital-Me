@@ -133,20 +133,20 @@ def extractContextFromFbOthersPosts(text):
     for action in ['shared', 'wrote', 'added', 'reviewed', 'updated', 'was with']:
         if action in text:
             aux = text.split(action)
-            author, text2 = aux[0], aux[-1]
+            author, text2 = aux[0].title().strip(), aux[-1]
             text3 = text2.split(' ')[2:]    # Drop preposition 'in', 'on', 'a' ...
 
             if action == 'shared':
-                contentType = text3[0].capitalize()
-                return action.capitalize().strip(), contentType.strip(), 'Self Timeline', author.title().strip()
+                contentType = text3[0].capitalize().strip()
+                return action.capitalize().strip(), contentType, 'Self Timeline', author
 
             elif action == 'wrote':
-                return action.capitalize().strip(), 'Post', 'Self Timeline', author.title().strip()
+                return action.capitalize().strip(), 'Post', 'Self Timeline', author
 
             elif action == 'added':
                 # Only usecase in personal database is 'added new photo'
-                contentType = ' '.join(text3[:2]).capitalize()
-                return action.capitalize().strip(), contentType.strip(), 'Self Timeline', author.title().strip()
+                contentType = ' '.join(text3[:2]).capitalize().strip()
+                return action.capitalize().strip(), contentType, 'Self Timeline', author
 
             elif action == 'reviewed' or action == 'commented' or action == 'likes':
                 raise Ignore    # Some of these have actual value but too complex for the initial phase
@@ -175,12 +175,12 @@ def extractContextFromReactions(text):
 
                 if ' in ' in targetContentType:
                     aux = targetContentType.split(' in ')
-                    targetContentType, facebookLocation = aux[0], aux[1]
-                    facebookLocation = facebookLocation.split('.')[0]     # Remove final dot
+                    targetContentType, facebookLocation = aux[0], aux[1].strip()
+                    facebookLocation = facebookLocation.split('.')[0].strip()     # Remove final dot
                 else:
-                    targetContentType = targetContentType.split('.')[0]     # Remove final dot
+                    targetContentType = targetContentType.split('.')[0].strip()     # Remove final dot
                     facebookLocation = None
-                return targetContentType.strip(), targetContentAuthor.strip(), facebookLocation.strip()
+                return targetContentType, targetContentAuthor, facebookLocation
             else:
                 raise Exception('Implementation error here')
     raise NoMatch

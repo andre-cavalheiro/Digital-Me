@@ -70,7 +70,7 @@ def filterContent(contentList, locationKeyPerContentType, locationsToIgnorePerPl
 
                 for location in locations:
 
-                    if locationKey in locationsToIgnorePerPlatform[platform]:
+                    if location in locationsToIgnorePerPlatform[platform]:
                         continue
 
                     if location not in output.keys():

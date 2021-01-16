@@ -25,6 +25,10 @@ class baseInterpreter():
         try:
 
             for it, dataPoint in enumerate(self.data):
+
+                # Do here to avoid another loop - If we're merging similiar content it might be visited at different times
+                dataPoint['timestamp'] = [dataPoint['timestamp']]
+
                 contentType = dataPoint['type']
 
                 assert(contentType in relevantKeysPerContentType.keys())
@@ -34,31 +38,26 @@ class baseInterpreter():
                     continue
 
                 contentKey = tuple([dataPoint[k] for k in relevantKeysPerContentType[contentType]])
-                r=1
 
-                if dataPoint['type'] == 'Video' and dataPoint['title'] == "Knowing bros [Ask Us Anything] Blackpink Ep. 87 English Sub":
-                    r=2
+                #if dataPoint['type'] == 'Video' and dataPoint['title'] == "Knowing bros [Ask Us Anything] Blackpink Ep. 87 English Sub":
+                #    r=2
 
                 if contentKey in uniqueContent.keys():
                     uniqueContent[contentKey].append(it)
                 else:
                     uniqueContent[contentKey] = [it]
 
-                # Do here to avoid another loop - If we're merging similiar content it might be visited at different times
-                dataPoint['timestamp'] = [dataPoint['timestamp']]
-
-            p=1
             for contentKey, contantAppearendes in uniqueContent.items():
 
-                if len(contantAppearendes)>1:
+                if len(contantAppearendes) > 1:
                     # Nullify apearences to drop, while keeping their timestamp
-                    newTimestamps = [self.data[i]['timestamp'] for i in contantAppearendes[1:]]
+                    newTimestamps = []
                     for i in contantAppearendes[1:]:
+                        newTimestamps += self.data[i]['timestamp']
                         self.data[i] = None
 
                     # Add timestamps to the instance we're keeping
                     self.data[contantAppearendes[0]]['timestamp'] += newTimestamps
-
 
         except Exception as ex:
             print(traceback.format_exc())
@@ -72,9 +71,11 @@ class baseInterpreter():
     def storeInDB(self, client):
         assert(self.data is not None)
         try:
-            client.insert_many(self.data)       # todo - this should be changed to update to avoid duplicates.
+            insertedDocs = client.insert_many(self.data)
+            insertedIds = insertedDocs.inserted_ids
         except Exception as ex:
             print(traceback.format_exc())
+        return insertedIds
 
     def getMinMaxTime(self):
         minDate, maxDate = None, None
