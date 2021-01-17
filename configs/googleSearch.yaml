@@ -1,0 +1,16 @@
+file: Google/A_minha_atividade.json
+keysForMerge:
+  Query:
+    - query
+  Webpage:
+    - title
+locationKeys:
+  Query: ~
+  Webpage:
+    - url
+locationLabelPerKey:
+  url: URL
+locationsToIgnore: []
+termsToIgnore:
+  - "Used Search"
+

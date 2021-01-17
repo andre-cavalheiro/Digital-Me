@@ -1,13 +1,16 @@
 import traceback
 import logging
+from os.path import join
 
 from pymongo import MongoClient
 
+from libs.mongoLib import saveMany, updateContentDocs
+from libs.yamlLib import loadYaml
+from libs.utilsInitialProcessing import reorganize
 from interpreters.google import GoogleInterpreter
 from interpreters.youtube import YoutubeInterpreter
 from interpreters.twitter import TwitterInterpreter
 from interpreters.reddit import RedditInterpreter
-from interpreters.facebook import FacebookInterpreter
 from interpreters.facebook import FacebookInterpreter
 
 # todo - transform this into config file
@@ -19,6 +22,14 @@ platforms = {
         'keysForMerge': {
             'Query': ['query'],
             'Video': ['channel', 'title'],
+        },
+        'locationKeys': {
+            'Video': ['channel'],
+            'Query': None
+        },
+        'locationsToIgnore': [],
+        'locationLabelPerKey': {
+            'channel': 'YouTube Channel',
         }
     },
     'Facebook': {
@@ -33,6 +44,17 @@ platforms = {
             'Comment': None,
             'Post': None,
             'Query': ['query'],
+        },
+        'locationKeys': {
+            'Comment': ['targetContentAuthor', 'targetContentFbLocation'],
+            'Post': ['targetContentAuthor', 'targetContentFbLocation', 'mentions'],
+            'Query': None,
+        },
+        'locationsToIgnore': ['Self'],
+        'locationLabelPerKey': {
+            'targetContentAuthor': 'Facebook Account',
+            'targetContentFbLocation': 'Facebook Location',
+            'mentions': 'Facebook Account',
         }
     },
     'Google Search': {
@@ -42,6 +64,14 @@ platforms = {
         'keysForMerge': {
             'Query': ['query'],
             'Webpage': ['title'],
+        },
+        'locationKeys': {
+            'Query': None,
+            'Webpage': ['url'],
+        },
+        'locationsToIgnore': [],
+        'locationLabelPerKey': {
+            'url': 'URL',
         }
     },
     'Reddit': {
@@ -51,6 +81,14 @@ platforms = {
         'keysForMerge': {
             'Comment': None,
             'Post': None,
+        },
+        'locationKeys': {
+            'Comment': ['subreddit'],
+            'Post': ['subreddit'],
+        },
+        'locationsToIgnore': [],
+        'locationLabelPerKey': {
+            'subreddit': 'Subreddit',
         }
     },
     'Twitter': {
@@ -59,12 +97,25 @@ platforms = {
         'termsToIgnore': [],
         'keysForMerge': {
             'Tweet': None
+        },
+        'locationKeys': {
+            'Tweet': ['userMentions'],
+        },
+        'locationsToIgnore': [],
+        'locationLabelPerKey': {
+            'userMentions': 'Twitter Account',
         }
     },
 }
 
-"""
-"""
+interpreters = {
+    'Facebook': FacebookInterpreter,
+    'YouTube': YoutubeInterpreter,
+    'GoogleSearch': GoogleInterpreter,
+    'Reddit': RedditInterpreter,
+    'Twitter': TwitterInterpreter,
+
+}
 
 if __name__ == '__main__':
 
@@ -72,23 +123,42 @@ if __name__ == '__main__':
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    baseDir = '../data/'
+    dataDir = '../data/'
+    configDir = '../configs/'
+    # Load config
+    platforms = loadYaml('../configs/platforms.yaml')
 
+    # Set up DB
     client = MongoClient()
     db = client['digitalMe']
-    collection = db['content']
+    collectionCont = db['content']
+    collectionLoc = db['locations']
 
-    for platform, info in platforms.items():
+    for platform, configFile in platforms.items():
         try:
+            # Load config file
             print(f'=== {platform} ===')
-            interpreter = info['class'](debug=False)
-            interpreter.load(baseDir, info['file'])
+            info = loadYaml(join(configDir, configFile))
+
+            # Content processing
+            interpreter = interpreters[platform](debug=False)
+            interpreter.load(dataDir, info['file'])
             interpreter.preProcess()
             interpreter.transform(info['termsToIgnore'])
-            interpreter.mergeTheSameContent(info['keysForMerge'])
+            interpreter.mergeSameContent(info['keysForMerge'])
+            contentData = interpreter.getContentData()
+            contentDocsIds = saveMany(collectionCont, contentData)
+
             minDate, maxDate = interpreter.getMinMaxTime()
             print(f'History from {minDate} to {maxDate}')
-            interpreter.storeInDB(collection)
+
+            # Locations processing
+            interpreter.addIds(contentDocsIds)
+            interpreter.extractLocations(info['locationKeys'], info['locationsToIgnore'], info['locationLabelPerKey'], platform=platform)
+            locationData = interpreter.getLocationData()
+            locationDocsIds = saveMany(collectionLoc, locationData)
+            contentDocsPayload = reorganize(locationData, locationDocsIds)  # Fix this name, it's stupid
+            updateContentDocs(collectionCont, 'locations', contentDocsPayload)
 
         except Exception as ex:
             print(traceback.format_exc())

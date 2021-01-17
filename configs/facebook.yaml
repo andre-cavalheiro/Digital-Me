@@ -1,0 +1,28 @@
+file:
+  - Facebook/comments/comments.json
+  - Facebook/likes_and_reactions/posts_and_comments.json
+  - Facebook/posts/your_posts.json
+  - Facebook/posts/other_people's_posts_to_your_timeline.json
+  - Facebook/search_history/your_search_history.json
+keysForMerge:
+  Comment: ~
+  Post: ~
+  Query:
+    - query
+locationKeys:
+  Comment:
+    - targetContentAuthor
+    - targetContentFbLocation
+  Post:
+    - targetContentAuthor
+    - targetContentFbLocation
+    - mentions
+  Query: ~
+locationLabelPerKey:
+  mentions: "Facebook Account"
+  targetContentAuthor: "Facebook Account"
+  targetContentFbLocation: "Facebook Location"
+locationsToIgnore:
+  - Self
+termsToIgnore: []
+

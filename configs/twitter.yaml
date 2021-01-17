@@ -1,0 +1,12 @@
+class: TwitterInterpreter
+file:
+  - Twitter/tweet.json
+keysForMerge:
+  Tweet: ~
+locationKeys:
+  Tweet:
+    - userMentions
+locationLabelPerKey:
+  userMentions: "Twitter Account"
+locationsToIgnore: []
+termsToIgnore: []

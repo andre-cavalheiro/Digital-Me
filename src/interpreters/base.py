@@ -2,11 +2,15 @@ import traceback
 from pymongo import MongoClient
 import logging
 
+from libs.customExceptions import ContentWithMultipleLocations, ContentWithoutLocation
+
+
 class baseInterpreter():
 
     def __init__(self, debug=False):
         self.originalData = None
         self.data = None
+        self.locationData = None
         self.debug = debug
 
     def load(self, path, name):
@@ -20,7 +24,13 @@ class baseInterpreter():
     def transform(self, termsToIgnore):
         raise Exception('Not Implemented')
 
-    def mergeTheSameContent(self, relevantKeysPerContentType):
+    def getContentData(self):
+        return self.data
+
+    def getLocationData(self):
+        return self.locationData
+
+    def mergeSameContent(self, relevantKeysPerContentType):
         uniqueContent = {}
         try:
 
@@ -68,15 +78,6 @@ class baseInterpreter():
 
         logging.info(f'Dropped a total of {origLen-len(self.data)} datapoints by merging')
 
-    def storeInDB(self, client):
-        assert(self.data is not None)
-        try:
-            insertedDocs = client.insert_many(self.data)
-            insertedIds = insertedDocs.inserted_ids
-        except Exception as ex:
-            print(traceback.format_exc())
-        return insertedIds
-
     def getMinMaxTime(self):
         minDate, maxDate = None, None
         for d in self.data:
@@ -87,3 +88,61 @@ class baseInterpreter():
                 minDate = d['timestamp'] if minDate > d['timestamp'] else minDate
                 maxDate = d['timestamp'] if maxDate < d['timestamp'] else maxDate
         return minDate, maxDate
+
+    def addIds(self, documentIds):
+        for datapoint, id in zip(self.data, documentIds):
+            datapoint['_id'] = id
+
+    def extractLocations(self, locationKeysPerContentType, locationsToIgnore, labelByLocationKey, platform=None):
+
+        assert(platform is not None)
+
+        output = {}
+        err = []
+
+        for content in self.data:
+            try:
+
+                locationKeys = locationKeysPerContentType[content['type']]
+
+                if locationKeys is None:
+                    # Content type does not have a location
+                    continue
+
+                for locationKey in locationKeys:
+
+                    if locationKey not in content.keys():
+                        raise ContentWithoutLocation
+
+                    locations = content[locationKey]
+
+                    # Generalize to both lists of locations or single locations
+                    locations = [locations] if not isinstance(locations, list) else locations
+
+                    for location in locations:
+
+                        if location in locationsToIgnore:
+                            continue
+
+                        if location not in output.keys():
+                            output[location] = {
+                                'type': labelByLocationKey[locationKey],
+                                'platform': platform,
+                                'associatedContentTypes': [content['type']],
+                                'associatedContent': [content['_id']],
+                            }
+                        else:
+                            output[location]['associatedContent'].append(content['_id'])
+                            if content['type'] not in output[location]['associatedContentTypes']:
+                                output[location]['associatedContentTypes'].append(content['type'])
+            except ContentWithoutLocation:
+                err.append(content['_id'])
+            except Exception as ex:
+                print(traceback.format_exc())
+                continue
+
+        if len(err) > 0:
+            logging.warning(f'Found {len(err)} documents without location')
+
+        self.locationData = [dict(dt, label=k) for k, dt in output.items()]
+

@@ -143,3 +143,13 @@ def updateContentDocs(collection, key, contentDocsPayload):
             {"$set": {key: v}}
         )
 
+
+def saveMany(collection, data):
+    assert(data is not None)
+    try:
+        insertedDocs = collection.insert_many(data)
+        insertedIds = insertedDocs.inserted_ids
+    except Exception as ex:
+        print(traceback.format_exc())
+    return insertedIds
+

@@ -6,6 +6,7 @@ import pandas as pd
 from pandas.io.json import json_normalize
 import numpy as np
 
+from libs.utilsInitialProcessing import reorganize
 from entityExtraction import idGenerator
 from libs.mongoLib import updateContentDocs, getContentDocsWithEntities, getContentDocsWithInherentTags
 
@@ -134,13 +135,7 @@ if __name__ == '__main__':
         insertedIds = insertedDocs.inserted_ids
 
         # Update content docs with tags
-        contentDocsPayload = {}
-        for info, entityId in zip(entityCollectionData, insertedIds):
-            for contentDoc in info['associatedContent']:
-                if contentDoc not in contentDocsPayload.keys():
-                    contentDocsPayload[contentDoc] = [entityId]
-                else:
-                    contentDocsPayload[contentDoc].append(entityId)
+        contentDocsPayload = reorganize(entityCollectionData, insertedIds)
         updateContentDocs(collectionCont, 'tags', contentDocsPayload)
 
 

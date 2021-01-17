@@ -1,0 +1,16 @@
+file: YouTube/A_minha_atividade.json
+keysForMerge:
+  Query:
+    - query
+  Video:
+    - channel
+    - title
+locationKeys:
+  Query: ~
+  Video:
+    - channel
+locationLabelPerKey:
+  channel: "YouTube Channel"
+locationsToIgnore: []
+termsToIgnore:
+  - "a video that has been removed"

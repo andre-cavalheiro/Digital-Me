@@ -1,0 +1,15 @@
+file:
+  - Reddit/comments.csv
+  - Reddit/posts.csv
+keysForMerge:
+  Comment: ~
+  Post: ~
+locationKeys:
+  Comment:
+    - subreddit
+  Post:
+    - subreddit
+locationLabelPerKey:
+  subreddit: Subreddit
+locationsToIgnore: []
+termsToIgnore: []
