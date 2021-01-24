@@ -1,20 +1,13 @@
-import thinc
 import traceback
-import libs.pandas.stdLib as pl
-from libs.thincLib import importAndMakeRegistry
 from libs.APIs.neo4jClient import *
 from numpy import nan
 from os.path import join
-
-thinc.registry.create("neo4jCommunicator")
-
 
 def init(address, user, password):
     session = connect(address, user, password)
     return session
 
 
-@thinc.registry.neo4jCommunicator("saveTriplet.v1")
 def saveTripletToNeo4j(neo4jConfigFile):
     config = importAndMakeRegistry(neo4jConfigFile)
 
@@ -57,50 +50,6 @@ def saveTripletToNeo4j(neo4jConfigFile):
 
     return callback
 
-
-@thinc.registry.neo4jCommunicator("mergeSameLabels.v1")
-def mergeSameLabels(neo4jConfigFile):
-    config = importAndMakeRegistry(neo4jConfigFile)
-
-    def callback(*args):
-        c = config['connection']
-        driver = GraphDatabase.driver(c['address'], auth=(c['user'], c['password']), encrypted=False)   # fixme - encrypted
-
-        # Macth extracted entities with all other entity types that are NOT content
-        statement = 'MATCH (n1),(n2)\
-            WHERE toLower(n1.label) = toLower(n2.label) and id(n1) < id(n2)\
-            WITH [n1,n2] as ns\
-            CALL apoc.refactor.mergeNodes(ns, {properties: {dbpediaTypes: "combine",\
-             rosetteTypes: "combine", service: "combine", wikiID: "combine"}}) YIELD node\
-            RETURN node'
-
-        # FIXME - java.lang.IllegalArgumentException: [null] is not a supported property value,
-        #  problem being the "combines" when certain nodes dont have that property
-
-
-        print(driver)
-        print(statement)
-        result = singleStatment(driver, statement)
-
-        return
-
-    return callback
-
-
-@thinc.registry.neo4jCommunicator("removeSelfLoops.v1")
-def removeSelfLoops(neo4jConfigFile):
-    config = importAndMakeRegistry(neo4jConfigFile)
-
-    def callback(*args):
-        c = config['connection']
-        driver = GraphDatabase.driver(c['address'], auth=(c['user'], c['password']), encrypted=False) # fixme - encrypted
-        statement = 'MATCH (a)-[rel]->(a) DELETE rel'
-        result = singleStatment(driver, statement)
-        return
-    return callback
-
-
-@thinc.registry.neo4jCommunicator("convertToNetworkX.v1")
 def convertToNetworkX(neo4jConfigFile):
     config = importAndMakeRegistry(neo4jConfigFile)
 

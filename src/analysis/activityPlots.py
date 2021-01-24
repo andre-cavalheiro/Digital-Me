@@ -1,3 +1,6 @@
+from os import getcwd
+import sys
+sys.path.append(getcwd() + '/..')   # Add src/ dir to import path
 import traceback
 import logging
 from os.path import join
@@ -22,7 +25,7 @@ if __name__ == '__main__':
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    baseDir = '../data/'
+    baseDir = '../../data/'
     outputDir = join(baseDir, 'Plots')
 
 

@@ -1,3 +1,6 @@
+from os import getcwd
+import sys
+sys.path.append(getcwd() + '/..')   # Add src/ dir to import path
 import traceback
 import logging
 

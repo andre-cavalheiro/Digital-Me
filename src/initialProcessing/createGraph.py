@@ -1,3 +1,6 @@
+from os import getcwd
+import sys
+sys.path.append(getcwd() + '/..')   # Add src/ dir to import path
 import traceback
 import logging
 from os.path import join
@@ -70,11 +73,11 @@ def createGraphEdges(G, temporalPeriod, contentDf, nodesPerClass):
         timeEdges = [(temporalPeriod[i], temporalPeriod[i+1]) for i in range(len(temporalPeriod)-1)]
         
         # (Day)-(Content) edges
-        timeDf = contentDf['timestamp'].apply(pd.Series).reset_index().melt(id_vars='_id').dropna()[['_id', 'value']].set_index('_id')['value']
-        timestampEdges = list(timeDf.items())
+        actionDf = contentDf['timestamp'].apply(pd.Series).reset_index().melt(id_vars='_id').dropna()[['_id', 'value']].set_index('_id')['value']
+        actionEdges = list(actionDf.items())
 
         # Make sure every tail is already a node in the graph
-        assert(len([e[1] for e in timestampEdges if e[1] not in nodesPerClass['time']]) == 0)
+        assert(len([e[1] for e in actionEdges if e[1] not in nodesPerClass['time']]) == 0)
 
         # (Content)-(Location) edges
         locationDf = contentDf['locations'].dropna()
@@ -89,10 +92,10 @@ def createGraphEdges(G, temporalPeriod, contentDf, nodesPerClass):
         assert(len([e[1] for e in tagEdges if e[1] not in nodesPerClass['tag']]) == 0)
 
         # Add them all to the graph
-        G.add_edges_from(timeEdges)
-        G.add_edges_from(timestampEdges)
-        G.add_edges_from(locationEdges)
-        G.add_edges_from(tagEdges)
+        G.add_edges_from(timeEdges, edgeClass='temporal')
+        G.add_edges_from(actionEdges, edgeClass='action')
+        G.add_edges_from(locationEdges, edgeClass='origin')
+        G.add_edges_from(tagEdges, edgeClass='mention')
 
     except Exception as ex:
         print(traceback.format_exc())
@@ -100,7 +103,7 @@ def createGraphEdges(G, temporalPeriod, contentDf, nodesPerClass):
     return G
 
 
-def addNodeAttributes(G, data, platform=False, contentType=False):
+def addNodeAttributes(G, data, platform=False, contentType=False, locationType=False):
     if platform is True:
         # Regarding content nodes
         assert('contentDf' in data.keys())
@@ -121,6 +124,11 @@ def addNodeAttributes(G, data, platform=False, contentType=False):
         contentType = data['contentDf']['type'].to_dict()
         nx.set_node_attributes(G, contentType, 'contentType')
 
+    if locationType is True:
+        assert('locationDf' in data.keys())
+        locationType = data['locationDf']['type'].to_dict()
+        nx.set_node_attributes(G, locationType, 'locationType')
+
     return G
 
 
@@ -129,20 +137,20 @@ if __name__ == '__main__':
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    baseDir = '../data/'
+    baseDir = '../../data/'
     platforms = ['Facebook', 'YouTube', 'Google Search', 'Reddit', 'Twitter']
     minYear, maxYear = 2009, 2021
     # Facebook events force us to require this
 
     # Acquiring params
-    create, loadFromOS, loadFromMongo, loadFromNeo4j = True, False, False, False
+    create, loadFromOS, loadFromMongo = False, True, False
     # Storing Params
-    saveToMongo, saveToOS, sendToNeo4j = True, True, True
+    saveToMongo, saveToOS, saveAsGraphML = False, True, True
     # Data to include
-    includePlatform, includeContentType = True, True
+    includePlatform, includeContentType, includeLocationType = True, True, True
 
     # Make sure we're only acquiring from one source
-    assert(sum(1 for item in [create, loadFromMongo, loadFromOS, loadFromNeo4j] if item) == 1)
+    assert(sum(1 for item in [create, loadFromMongo, loadFromOS] if item) == 1)
 
     try:
         client = MongoClient()
@@ -159,7 +167,7 @@ if __name__ == '__main__':
                 'time': data['temporalPeriod'],
                 'content': [x['_id'] for x in data['contentList']],
                 'tag': [x['_id'] for x in data['entitiesList']],
-                'location': [x['_id'] for x in data['locationsList']],
+                'spatial': [x['_id'] for x in data['locationsList']],
             }
             logging.info(f'Data acquired, creating graph (temporal period: {data["temporalPeriod"][0]} -> {data["temporalPeriod"][-1]})')
 
@@ -181,7 +189,7 @@ if __name__ == '__main__':
             # which don't end up in the graph. This solves this - todo
             G = na.getOnlyConnectedGraph(G)
 
-            G = addNodeAttributes(G, data, platform=includePlatform, contentType=includeContentType)
+            G = addNodeAttributes(G, data, platform=includePlatform, contentType=includeContentType, locationType=includeLocationType)
 
         else:
             if loadFromMongo is True:
@@ -193,9 +201,6 @@ if __name__ == '__main__':
                 # Load graph from OS
                 G = nx.read_gpickle(join(baseDir, f'graph.gpickle'))
 
-            if loadFromNeo4j is True:
-                pass    # TODO
-
         if saveToMongo is True:
             pass    # TODO
 
@@ -203,9 +208,26 @@ if __name__ == '__main__':
             logging.info(f'Saved to OS')
             nx.write_gpickle(G, join(baseDir, f'graph.gpickle'))
 
-        if sendToNeo4j is True:
-            logging.info(f'Saved to neo4j')
-            nx.write_graphml(G,  join(baseDir, f'graph.graphml'))
+        if saveAsGraphML is True:
+            # Make it viable for Neo4j import
+            graphML = G.copy()
+
+            # Add node labels (classes)
+            classes = nx.get_node_attributes(graphML, 'nodeClass')
+            classes = {k: f':{v.upper()}' for k, v in classes.items()}
+            nx.set_node_attributes(graphML, classes, 'labels')
+            # print(graphML.nodes[list(classes.keys())[0]])
+            # for n, dt in graphML.nodes(data=True):
+            #    del dt['nodeClass']
+            
+            # Add edge labels (classes)
+            classes = nx.get_edge_attributes(graphML, 'edgeClass')
+            nx.set_edge_attributes(graphML, classes, 'label')
+            # for n, dt in graphML.edges(data=True):
+            #    del dt['edgeClass']
+
+            nx.write_graphml(graphML,  join(baseDir, f'graph.graphml'))
+            logging.info(f'Saved as graphML')
 
     except Exception as ex:
         print(traceback.format_exc())

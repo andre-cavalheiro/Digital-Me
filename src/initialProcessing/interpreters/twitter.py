@@ -84,7 +84,7 @@ class TwitterInterpreter(baseInterpreter):
                 newDataPoint = {
                     'platform': 'Twitter',
                     'timestamp': row['created_at'],
-                    'type': 'Tweet',
+                    'type': 'Post',
                     'body': row['full_text'],
                     'likes': row['favorite_count'],
                     'retweets': row['retweet_count'],

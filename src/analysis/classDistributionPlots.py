@@ -1,3 +1,6 @@
+from os import getcwd
+import sys
+sys.path.append(getcwd() + '/..')  # Add src/ dir to import path
 import traceback
 import logging
 from os.path import join
@@ -24,7 +27,7 @@ if __name__ == '__main__':
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    baseDir = '../data/'
+    baseDir = '../../data/'
     outputDir = join(baseDir, 'Plots')
 
     try:
@@ -41,20 +44,21 @@ if __name__ == '__main__':
         auxDf['Class'] = 'Content'
         outputDf = outputDf.append(auxDf)
 
+        # Location
+        locationSubClasses = [G.nodes[n]['locationType'] for n in G.nodes() if G.nodes[n]['nodeClass'] == 'location']
+        subClassCount = Counter(locationSubClasses)
+        auxDf = pd.DataFrame.from_dict(subClassCount, orient='index', columns=['Count'])
+        auxDf.index.rename('Subclass', inplace=True)
+        auxDf.reset_index(inplace=True)
+        auxDf['Class'] = 'Locations'
+        outputDf = outputDf.append(auxDf)
+
         # Time
         timeNodes = len([1 for n in G.nodes() if G.nodes[n]['nodeClass'] == 'time'])
         outputDf = outputDf.append({
             'Class': 'Time',
             'Subclass': 'Time',
             'Count': timeNodes,
-        }, ignore_index=True)
-
-        # Location
-        locationNodes = len([1 for n in G.nodes() if G.nodes[n]['nodeClass'] == 'location'])
-        outputDf = outputDf.append({
-            'Class': 'Location',
-            'Subclass': 'Location',
-            'Count': locationNodes,
         }, ignore_index=True)
 
         # Tags

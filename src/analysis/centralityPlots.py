@@ -1,3 +1,6 @@
+from os import getcwd
+import sys
+sys.path.append(getcwd() + '/..')   # Add src/ dir to import path
 import traceback
 import logging
 from os.path import join
@@ -19,11 +22,11 @@ if __name__ == '__main__':
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    baseDir = '../data/'
+    baseDir = '../../data/'
     outputDir = join(baseDir, 'Centrality')
 
     calculateCentrality, loadFromOS = False, True
-    saveCentralityToOS, saveCentralityToDB = False, False
+    saveCentralityToOS, saveCentralityToDB = True, False
 
     measurements = ['degree', 'betweennessParallel']    # 'closeness', 'katz'
 
@@ -51,7 +54,7 @@ if __name__ == '__main__':
             df = na.calculateCentrality(G, df, measurements, saveAsWeGo=True, saveDir=outputDir)
         else:
             if loadFromOS is True:
-                df = pd.read_csv(join(outputDir, f'centralityDf-DegBetw.csv'))
+                df = pd.read_csv(join(outputDir, f'centralityDf.csv'))
                 nodeClasses = df.nodeClass.unique().tolist()
 
         # Save data if needed
@@ -109,10 +112,10 @@ if __name__ == '__main__':
         plt.close()
 
         # Another with matplotlib
-        logAxis = True
+        logAxis = False
         for m in measurements:
-            data = [df[df.nodeClass == c][m].tolist() for c in ['tag']]
-            vz.drawBoxPlots(data, nodeClasses, logAxis, join(outputDir, f'plt-{m}.png'), showfliers=True, meanline=True)
+            data = [df[df.nodeClass == c][m].tolist() for c in nodeClasses]
+            vz.drawBoxPlots(data, nodeClasses, logAxis, join(outputDir, f'plt-{m}.png'), showfliers=False, meanline=True)
 
     except Exception as ex:
         print(traceback.format_exc())

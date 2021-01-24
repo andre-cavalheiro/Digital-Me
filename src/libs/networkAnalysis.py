@@ -1,13 +1,13 @@
 import traceback
 import logging
+import os
+from functools import reduce
 
 import numpy as np
 import pandas as pd
-import networkx as nx
 import powerlaw
-import os
+import networkx as nx
 from scipy.sparse import csr_matrix
-
 from multiprocessing import Pool
 import itertools
 
@@ -19,7 +19,7 @@ def calculateCentrality(G, nodeDf, measurements, saveAsWeGo=True, saveDir=None):
         'betweenness': nx.betweenness_centrality,
         'betweennessParallel': betweenness_centrality_parallel,
         'closeness': nx.closeness_centrality,
-        'closeness': nx.eigenvector_centrality,
+        'eigenvector': nx.eigenvector_centrality,
         'katz': nx.katz_centrality,
     }
 
@@ -53,7 +53,24 @@ def getOnlyConnectedGraph(g, prints=True):
     return giantComponent
 
 
-def generalNetworkAnalysis(degreeValues):
+def adjacencyBetweenTypes(G,  nodesPerClass, classA, classB):
+    '''
+
+    :param G:
+    :param nodesPerClass:
+    :param classA:
+    :param classB:
+    :return: scipy_sparse_matrix
+    '''
+    nodesClassA, nodesClassB = nodesPerClass[classA], nodesPerClass[classB]
+    validNodes = nodesClassA + nodesClassB
+    adjacencyM = nx.to_scipy_sparse_matrix(G, nodelist=validNodes)
+    adjacencyM = adjacencyM[:len(nodesClassA), len(nodesClassA):]
+    assert(adjacencyM.shape == (len(nodesClassA), len(nodesClassB)))
+    return adjacencyM
+
+
+def generalNetworkStats(degreeValues):
     '''
     :param degreeValues:
     :return:

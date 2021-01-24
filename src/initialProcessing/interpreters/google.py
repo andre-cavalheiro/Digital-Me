@@ -69,7 +69,7 @@ class GoogleInterpreter(baseInterpreter):
 
                     # Create datapoint
                     newDataPoint = {
-                        'platform': 'Google Search',
+                            'platform': 'Google Search',
                         'timestamp': row['time'],
                         'type': contentType,
                         'title': textualFeature,

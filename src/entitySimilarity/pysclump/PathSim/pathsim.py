@@ -58,8 +58,6 @@ class PathSim:
                         minDist = similarity_matrix[index1][index2]
                         print(f'new min {minDist}')
 
-
-                    #
                     # print(similarity_matrix[index1][index2])
                 else:
                     similarity_matrix[index1][index2] = 0
