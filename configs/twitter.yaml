@@ -2,11 +2,20 @@ class: TwitterInterpreter
 file:
   - Twitter/tweet.json
 keysForMerge:
-  Tweet: ~
-locationKeys:
-  Tweet:
+  Post: ~
+sourceKeys:
+  Post:
     - userMentions
-locationLabelPerKey:
+sourceTypePerKey:
   userMentions: "Twitter Account"
-locationsToIgnore: []
+sourceRelationship:
+  userMentions: "InherentMention"
+sourcesToIgnore: []
 termsToIgnore: []
+entityExtractionKeys:
+  Post:
+    - body
+inherentTags:
+  Post:
+    - hashtags
+    - symbols

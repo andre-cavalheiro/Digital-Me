@@ -4,12 +4,23 @@ file:
 keysForMerge:
   Comment: ~
   Post: ~
-locationKeys:
+sourceKeys:
   Comment:
     - subreddit
   Post:
     - subreddit
-locationLabelPerKey:
+sourceTypePerKey:
   subreddit: Subreddit
-locationsToIgnore: []
+sourceRelationship:
+  subreddit: "Placed"
+sourcesToIgnore: []
 termsToIgnore: []
+entityExtractionKeys:
+  Comment:
+    - body
+  Post:
+    - title
+    - body
+inherentTags:
+  Comment: ~
+  Post: ~

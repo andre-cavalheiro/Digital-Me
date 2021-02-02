@@ -4,18 +4,22 @@ from pymongo import MongoClient
 import pandas as pd
 from pandas.io.json import json_normalize
 
+import libs.pandasLib as pl
 
-def getPayloadsDfFromDB(collection, platforms):
+def getPayloadsDfFromDB(collection, entityExtractionKeys):
     '''
     :param collection: collection client
-    :param platforms: Dictionary, platform names: array(attributes to access)
+    :param entityExtractionKeys: Dictionary, platform names: array(attributes to access)
     :return:
     '''
 
     df = pd.DataFrame(columns=['payload', 'id'])
 
-    for platform, dt in platforms.items():
+    for platform, dt in entityExtractionKeys.items():
         for contentType, payloadAttrs in dt.items():
+            if payloadAttrs is None:
+                continue
+
             results = collection.find({'$and': [{'platform': platform}, {'type': contentType}]})
 
             # Too slow - probably should creat df from dics and then change as I see fit
@@ -47,19 +51,7 @@ def getContentDocsWithEntities(collection):
     results = collection.find({'extractedEntities': {'$exists': True, '$ne': []}})
     df = pd.json_normalize(results)
     df = df[['_id', 'extractedEntities']]
-
-    # One row per entity extracted, keeping the document id in each
-    auxdf = df['extractedEntities'].apply(pd.Series).reset_index()
-    auxdf = auxdf.melt(id_vars='index')
-    auxdf = auxdf.dropna()[['index', 'value']]
-    auxdf = auxdf.set_index('index')
-    df = pd.merge(auxdf, df[['_id']], left_index=True, right_index=True)
-    df.reset_index(inplace=True, drop=True)
-
-    # Unpack dictionary
-    k = json_normalize(df['value'].tolist())
-    df = df.join(k)
-    df.drop('value', axis=1, inplace=True)
+    df = pl.unrollListOfDictsAttr(df, 'extractedEntities', ['_id'])
 
     return df
 
@@ -77,18 +69,13 @@ def getContentDocsWithInherentTags(collection, attrPerContentType):
                 df = pd.json_normalize(results)
 
                 # Assuming these attributes hold arrays - unroll into several rows
-                auxdf = df[attr].apply(pd.Series).reset_index()
-                auxdf = auxdf.melt(id_vars='index')
-                auxdf = auxdf.dropna()[['index', 'value']]
-                auxdf = auxdf.set_index('index')
-                df = pd.merge(auxdf, df[['_id']], left_index=True, right_index=True)
-                df.reset_index(inplace=True, drop=True)
-                df.rename({'value': 'normalized'}, axis=1, inplace=True)
+                df = pl.unrollListAttr(df, attr, ['_id'], newAttrName='normalized')
 
                 if outputDf is None:
                     outputDf = df
                 else:
                     outputDf = outputDf.append(df)
+
 
     return outputDf
 

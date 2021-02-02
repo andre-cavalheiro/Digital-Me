@@ -2,7 +2,7 @@ import traceback
 from pymongo import MongoClient
 import logging
 
-from libs.customExceptions import ContentWithMultipleLocations, ContentWithoutLocation
+from libs.customExceptions import ContentWithMultipleLocations, ContentWithoutSource
 
 
 class baseInterpreter():
@@ -27,9 +27,6 @@ class baseInterpreter():
     def getContentData(self):
         return self.data
 
-    def getLocationData(self):
-        return self.locationData
-
     def mergeSameContent(self, relevantKeysPerContentType):
         uniqueContent = {}
         try:
@@ -48,9 +45,6 @@ class baseInterpreter():
                     continue
 
                 contentKey = tuple([dataPoint[k] for k in relevantKeysPerContentType[contentType]])
-
-                #if dataPoint['type'] == 'Video' and dataPoint['title'] == "Knowing bros [Ask Us Anything] Blackpink Ep. 87 English Sub":
-                #    r=2
 
                 if contentKey in uniqueContent.keys():
                     uniqueContent[contentKey].append(it)
@@ -93,7 +87,7 @@ class baseInterpreter():
         for datapoint, id in zip(self.data, documentIds):
             datapoint['_id'] = id
 
-    def extractLocations(self, locationKeysPerContentType, locationsToIgnore, labelByLocationKey, platform=None):
+    def extractLocations(self, sourceKeysPerContentType, sourcesToIgnore, labelByLocationKey, sourceRelationship, platform=None):
 
         assert(platform is not None)
 
@@ -103,46 +97,59 @@ class baseInterpreter():
         for content in self.data:
             try:
 
-                locationKeys = locationKeysPerContentType[content['type']]
+                sourceKeys = sourceKeysPerContentType[content['type']]
 
-                if locationKeys is None:
-                    # Content type does not have a location
+                if sourceKeys is None:
+                    # This content type does not have a source
                     continue
 
-                for locationKey in locationKeys:
+                # For every possible source with reggard to this content type
+                for sourceKey in sourceKeys:
 
-                    if locationKey not in content.keys():
-                        raise ContentWithoutLocation
+                    if sourceKey not in content.keys():
+                        raise ContentWithoutSource
 
-                    locations = content[locationKey]
+                    # Get source
+                    sources = content[sourceKey]
 
-                    # Generalize to both lists of locations or single locations
-                    locations = [locations] if not isinstance(locations, list) else locations
+                    # Generalize to both lists of sources or single sources
+                    sources = [sources] if not isinstance(sources, list) else sources
 
-                    for location in locations:
+                    # Add it to sources list and associate it with the content
+                    for src in sources:
 
-                        if location in locationsToIgnore:
+                        if src in sourcesToIgnore:
                             continue
 
-                        if location not in output.keys():
-                            output[location] = {
-                                'type': labelByLocationKey[locationKey],
+                        if src not in output.keys():
+                            # New Source
+                            output[src] = {
+                                'type': labelByLocationKey[sourceKey],
                                 'platform': platform,
                                 'associatedContentTypes': [content['type']],
-                                'associatedContent': [content['_id']],
+                                'associatedContent': [{
+                                    'id': content['_id'],
+                                    'relationshipType': sourceRelationship[sourceKey],
+
+                                }],
                             }
                         else:
-                            output[location]['associatedContent'].append(content['_id'])
-                            if content['type'] not in output[location]['associatedContentTypes']:
-                                output[location]['associatedContentTypes'].append(content['type'])
-            except ContentWithoutLocation:
+                            # Known Source
+                            output[src]['associatedContent'].append({
+                                    'id': content['_id'],
+                                    'relationshipType': sourceRelationship[sourceKey]
+                                })
+                            if content['type'] not in output[src]['associatedContentTypes']:
+                                output[src]['associatedContentTypes'].append(content['type'])
+            except ContentWithoutSource:
                 err.append(content['_id'])
             except Exception as ex:
                 print(traceback.format_exc())
                 continue
 
         if len(err) > 0:
-            logging.warning(f'Found {len(err)} documents without location')
+            logging.warning(f'Found {len(err)} documents without source')
 
         self.locationData = [dict(dt, label=k) for k, dt in output.items()]
+        return self.locationData
 

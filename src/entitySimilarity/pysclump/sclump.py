@@ -123,12 +123,10 @@ class SClump:
 
         return S, lambdas, losses
 
-
     # Optimize F, keeping S fixed.
     def optimize_F(self, S):
         LS = normalized_laplacian(S)    
         return eigenvectors(LS, num=self.num_clusters)
-
 
     # Optimize S, keeping W and F fixed.
     def optimize_S(self, W, F):

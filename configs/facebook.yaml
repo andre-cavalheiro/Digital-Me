@@ -9,7 +9,7 @@ keysForMerge:
   Post: ~
   Query:
     - query
-locationKeys:
+sourceKeys:
   Comment:
     - targetContentAuthor
     - targetContentFbLocation
@@ -18,11 +18,23 @@ locationKeys:
     - targetContentFbLocation
     - mentions
   Query: ~
-locationLabelPerKey:
-  mentions: "Facebook Account"
-  targetContentAuthor: "Facebook Account"
+sourceTypePerKey:
   targetContentFbLocation: "Facebook Location"
-locationsToIgnore:
+  targetContentAuthor: "Facebook Account"
+  mentions: "Facebook Account"
+sourceRelationship:
+  targetContentFbLocation: "Placed"
+  targetContentAuthor: "InherentMention"
+  mentions: "InherentMention"
+sourcesToIgnore:
   - Self
 termsToIgnore: []
+entityExtractionKeys:
+  Comment: ~
+  Post: ~
+  Query: ~
+inherentTags:
+  Comment: ~
+  Post: ~
+  Query: ~
 

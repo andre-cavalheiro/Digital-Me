@@ -1,5 +1,14 @@
 import pickle
 import scipy.sparse
+import numpy as np
+import yaml
+
+
+def loadYaml(path):
+    with open(path) as f:
+        # use safe_load instead load
+        configData = yaml.safe_load(f)
+    return configData
 
 def loadPickle(name):
     with open(name, 'rb') as f:
@@ -21,3 +30,10 @@ def saveSparce(dt, name):
     scipy.sparse.save_npz(name, dt)
 
 
+def loadNumpy(name):
+    M = np.load(name)
+    return M
+
+
+def saveNumpy(dt, name):
+    np.save(name, dt)

@@ -4,13 +4,22 @@ keysForMerge:
     - query
   Webpage:
     - title
-locationKeys:
+sourceKeys:
   Query: ~
   Webpage:
     - url
-locationLabelPerKey:
+sourceTypePerKey:
   url: URL
-locationsToIgnore: []
+sourceRelationship:
+  url: "Authorship"
+sourcesToIgnore: []
 termsToIgnore:
   - "Used Search"
-
+entityExtractionKeys:
+  Query:
+    - query
+  Webpage:
+    - title
+inherentTags:
+  Query: ~
+  Webpage: ~

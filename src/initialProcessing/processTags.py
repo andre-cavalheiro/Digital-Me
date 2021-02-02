@@ -3,42 +3,23 @@ import sys
 sys.path.append(getcwd() + '/..')   # Add src/ dir to import path
 import traceback
 import logging
+from os.path import join
 
 from pymongo import MongoClient
 import pandas as pd
 from pandas.io.json import json_normalize
 import numpy as np
+from bson.objectid import ObjectId
 
-from libs.utilsInitialProcessing import reorganize
+from libs.utilsInitialProcessing import invertCollectionPriority
 from entityExtraction import idGenerator
 from libs.mongoLib import updateContentDocs, getContentDocsWithEntities, getContentDocsWithInherentTags
-
-inherentTagsPerContentType = {
-    'Facebook': {
-        'Comment': None,
-        'Post': None,
-        'Query': None,
-    },
-    'Twitter': {
-        'Tweet': ['hashtags', 'symbols']
-    },
-    'Google Search': {
-        'Query': None,
-        'Webpage': None,
-    },
-    'Youtube': {
-        'Query': None,
-        'Video': None,
-    },
-    'Reddit': {
-        'Comment': None,
-        'Post': None,
-    },
-}
+from libs.osLib import loadYaml
 
 
 def mergeEntitiesAndInherent(entityDf, inherentTagDf, idSize):
     inherentTagDf['mention'] = inherentTagDf['normalized']
+    inherentTagDf['relationshipType'] = 'InherentMention'
     inherentTagDf['entityId'] = pd.Series([idGenerator(idSize) for _ in range(inherentTagDf.shape[0])])
     entityDf = entityDf.append(inherentTagDf, ignore_index=True)
     return entityDf
@@ -81,16 +62,20 @@ def standardizeIds(df):
 def prepareEntityCollection(df):
     output = []
     uniqueIds = df.index.unique()
-    for id in uniqueIds:
-        specificDf = df.loc[id].to_frame().transpose() if isinstance(df.loc[id], pd.Series) else df.loc[id]
+    for qid in uniqueIds:
+        specificDf = df.loc[qid].to_frame().transpose() if isinstance(df.loc[qid], pd.Series) else df.loc[qid]
 
-        associatedContent = specificDf._id.unique().tolist()
         types = specificDf.type.unique().tolist()
         mentionForms = specificDf.mention.unique().tolist()
         normalizedForms = specificDf.normalized.unique().tolist()
 
+        x = specificDf[['_id', 'relationshipType']].reset_index(drop=True).rename(columns={'_id': 'id'}).T
+        x = x.to_dict()
+        x = x.values()
+        associatedContent = list(x)
+
         newDataPoint = {
-            'id': id,
+            'id': qid,
             'types': types,
             'mentionForms': mentionForms,
             'normalizedForms': normalizedForms,
@@ -113,7 +98,12 @@ if __name__ == '__main__':
     idSize = 6
 
     try:
-
+        # Load config
+        configDir = '../../configs/'
+        config = loadYaml(join(configDir, 'main.yaml'))
+        inherentTags = {p: loadYaml(join(configDir, configFile))['inherentTags'] for p, configFile in
+                                config['platforms'].items()}
+        # Set up DB
         client = MongoClient()
         db = client['digitalMe']
         collectionCont = db['content']
@@ -121,9 +111,10 @@ if __name__ == '__main__':
 
         # Query DB for content with extracted entities
         entityDf = getContentDocsWithEntities(collectionCont)
+        entityDf['relationshipType'] = 'ImpliedMention'
 
         # Query DB for tags inherent to data (not extracted entities)
-        inherentTagDf = getContentDocsWithInherentTags(collectionCont, inherentTagsPerContentType)
+        inherentTagDf = getContentDocsWithInherentTags(collectionCont, inherentTags)
 
         # Ensure entities with equal names have the same QID
         entityDf = mergeEntitiesAndInherent(entityDf, inherentTagDf, idSize)
@@ -138,10 +129,8 @@ if __name__ == '__main__':
         insertedIds = insertedDocs.inserted_ids
 
         # Update content docs with tags
-        contentDocsPayload = reorganize(entityCollectionData, insertedIds)
+        contentDocsPayload = invertCollectionPriority(entityCollectionData, insertedIds)
         updateContentDocs(collectionCont, 'tags', contentDocsPayload)
-
-
 
     except Exception as ex:
         print(traceback.format_exc())

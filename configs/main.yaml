@@ -1,0 +1,11 @@
+platforms:
+  Facebook: facebook.yaml
+  YouTube: youtube.yaml
+  GoogleSearch: googleSearch.yaml
+  Reddit: reddit.yaml
+  Twitter: twitter.yaml
+dataDir: '../../data/'
+pipeline:
+  - processContent.py
+  - entityExtraction.py
+  - processTags.py

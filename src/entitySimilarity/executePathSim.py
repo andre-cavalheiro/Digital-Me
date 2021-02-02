@@ -30,7 +30,9 @@ if __name__ == '__main__':
     }
 
     try:
-        metapath = ['tag', 'content', 'tag']
+        from scipy import sparse
+
+        metapath = ['time', 'content', 'time']    # ['location', 'content', 'location']     # ['tag', 'content', 'tag']
         metapath = [classMapping[t] for t in metapath]
 
         # Load graph from OS
@@ -38,7 +40,7 @@ if __name__ == '__main__':
 
         # Change IDs from MongoDB objects to integers for a more convenient slicing
         if loadNodeMappings is True:
-            ol.savePickle(join(outputDir, f'nodeMapping.pickle'))
+            nodeMapping = ol.loadPickle(join(outputDir, f'nodeMapping.pickle'))
         else:
             it, nodeMapping = 0, {}
             for id in G.nodes:
@@ -64,24 +66,22 @@ if __name__ == '__main__':
             logging.info(f'Graph has {len(G.nodes)} nodes')
             adjacencies = {f'{classA+classB}': adjacencyBetweenTypes(G, nodesPerClass, classA, classB)
                            for classA, classB in classCombinations}
+            logging.info(f'Adjacency matrices calculated')
 
             # Save Adjacency Matrices
             for comb, M in adjacencies.items():
                 ol.saveSparce(M, join(outputDir, f'{comb}.npz'))
 
         # Create PathSim instance.
+        logging.info(f'Initiating PathSimInstance')
         ps = PathSim(nodesPerClass, adjacencies)
 
-        # TODO
-        #    Adjacency matrices are sparse! Need to change pathSim to allow that!
-
-        # Get the similarity between two authors (indicated by type 'A').
-        nodeKeyA, nodeKeyB = nodesPerClass['G'][0], nodesPerClass['G'][1]
-        ps.pathsim(nodeKeyA, nodeKeyB, metapath=''.join(metapath))
-
         # Get the similarity matrix M for the metapath.
+        logging.info(f'Computing similarity Matrix')
         similarityM = ps.compute_similarity_matrix(metapath=''.join(metapath))
+        logging.info(f'All done')
         ol.saveSparce(similarityM, join(outputDir, f'similarity-{"".join(metapath)}.npz'))
+
 
     except Exception as ex:
         print(traceback.format_exc())

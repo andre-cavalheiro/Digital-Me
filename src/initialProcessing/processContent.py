@@ -1,15 +1,15 @@
-from os import getcwd
+import os
 import sys
-sys.path.append(getcwd() + '/..')   # Add src/ dir to import path
+sys.path.append(os.path.join(os.getcwd(), '..'))   # Add src/ dir to import path
 import traceback
 import logging
 from os.path import join
 
 from pymongo import MongoClient
 
+from libs.osLib import loadYaml
 from libs.mongoLib import saveMany, updateContentDocs
-from libs.yamlLib import loadYaml
-from libs.utilsInitialProcessing import reorganize
+from libs.utilsInitialProcessing import invertCollectionPriority
 from interpreters.google import GoogleInterpreter
 from interpreters.youtube import YoutubeInterpreter
 from interpreters.twitter import TwitterInterpreter
@@ -31,10 +31,9 @@ if __name__ == '__main__':
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    dataDir = '../../data/'
-    configDir = '../configs/'
     # Load config
-    platforms = loadYaml('../configs/platforms.yaml')
+    configDir = '../../configs/'
+    config = loadYaml(join(configDir, 'main.yaml'))
 
     # Set up DB
     client = MongoClient()
@@ -42,7 +41,7 @@ if __name__ == '__main__':
     collectionCont = db['content']
     collectionLoc = db['locations']
 
-    for platform, configFile in platforms.items():
+    for platform, configFile in config['platforms'].items():
         try:
             # Load config file
             print(f'=== {platform} ===')
@@ -50,22 +49,22 @@ if __name__ == '__main__':
 
             # Content processing
             interpreter = interpreters[platform](debug=False)
-            interpreter.load(dataDir, info['file'])
+            interpreter.load(config['dataDir'], info['file'])
             interpreter.preProcess()
             interpreter.transform(info['termsToIgnore'])
             interpreter.mergeSameContent(info['keysForMerge'])
             contentData = interpreter.getContentData()
-            # contentDocsIds = saveMany(collectionCont, contentData)
-            contentDocsIds = None
+            contentDocsIds = saveMany(collectionCont, contentData)
             minDate, maxDate = interpreter.getMinMaxTime()
             print(f'History from {minDate} to {maxDate}')
-            exit()
+
             # Locations processing
             interpreter.addIds(contentDocsIds)
-            interpreter.extractLocations(info['locationKeys'], info['locationsToIgnore'], info['locationLabelPerKey'], platform=platform)
-            locationData = interpreter.getLocationData()
+            locationData = interpreter.extractLocations(info['sourceKeys'], info['sourcesToIgnore'],
+                                                        info['sourceTypePerKey'], info['sourceRelationship'],
+                                                        platform=platform)
             locationDocsIds = saveMany(collectionLoc, locationData)
-            contentDocsPayload = reorganize(locationData, locationDocsIds)  # Fix this name, it's stupid
+            contentDocsPayload = invertCollectionPriority(locationData, locationDocsIds)  # Fix this name, it's stupid
             updateContentDocs(collectionCont, 'locations', contentDocsPayload)
 
         except Exception as ex:

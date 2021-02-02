@@ -5,12 +5,22 @@ keysForMerge:
   Video:
     - channel
     - title
-locationKeys:
+sourceKeys:
   Query: ~
   Video:
     - channel
-locationLabelPerKey:
+sourceTypePerKey:
   channel: "YouTube Channel"
-locationsToIgnore: []
+sourceRelationship:
+  channel: "Authorship"
+sourcesToIgnore: []
 termsToIgnore:
   - "a video that has been removed"
+entityExtractionKeys:
+  Query:
+    - query
+  Video:
+    - title
+inherentTags:
+  Query: ~
+  Video: ~

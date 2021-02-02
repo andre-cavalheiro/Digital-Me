@@ -32,12 +32,12 @@ if __name__ == '__main__':
     }
 
     try:
-        metapathsToInclude = [['tag', 'content', 'tag'], ['tag', 'content', 'day', 'content', 'tag']]
+        metapathsToInclude = [['tag', 'content', 'tag']]  # [['time', 'content', 'time']]
         metapathsToInclude = [[classMapping[t] for t in metapath] for metapath in metapathsToInclude]
 
         # Load similarity matrices
         similarityMatrices = {
-            ''.join(metapath): ol.loadSparce(join(outputDir, f'similarity-{"".join(metapath)}.npz'))
+            ''.join(metapath): ol.loadSparce(join(outputDir, f'similarity-{"".join(metapath)}.npz')).toarray()
             for metapath in metapathsToInclude
         }
 
@@ -45,15 +45,13 @@ if __name__ == '__main__':
         sclump = SClump(similarityMatrices, num_clusters=numClusters)
 
         # Run the algorithm!
-        labels, learnedSimMatrix, metapathWeights = sclump.run()
+        labels, learnedSimMatrix, metapathWeights = sclump.run(verbose=True, cluster_using='similarity', num_iterations=3, alpha=0.5, beta=10, gamma=0.01)    # cluster_using='laplacian'
 
         # Save results
-        ol.saveSparce(learnedSimMatrix, join(outputDir, f'SClump-similarity.npz'))
-        ol.savePickle(labels, join(outputDir, f'SClump-labels.npz'))
-        ol.savePickle(metapathWeights, join(outputDir, f'SClump-metapathWeights.npz'))
-        ol.savePickle(metapathsToInclude, join(outputDir, f'SClump-metapaths.npz'))
-
-
+        ol.saveNumpy(learnedSimMatrix, join(outputDir, f'SClump-similarity.npy'))
+        ol.savePickle(metapathsToInclude, join(outputDir, f'SClump-metapaths.pkl'))
+        ol.savePickle(labels, join(outputDir, f'SClump-labels.pkl'))
+        ol.savePickle(metapathWeights, join(outputDir, f'SClump-metapathWeights.pkl'))
 
     except Exception as ex:
         print(traceback.format_exc())

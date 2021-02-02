@@ -12,6 +12,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 import libs.networkAnalysis as na
+import libs.pandasLib as pl
 from libs.mongoLib import getContentDocsPerPlatform, getAllDocs, getMinMaxDay
 
 
@@ -58,44 +59,50 @@ def createGraphNodes(G, nodesPerClass):
 def createGraphEdges(G, temporalPeriod, contentDf, nodesPerClass):
     '''
     Adds the following types of connections to the graph: 
-        (Day)-(Day)
-        (Day)-(Content)
-        (Content)-(Location)
-        (Content)-(Tags)
+        (Day)-[temporal]-(Day)
+        (Day)-[action]-(Content)
+        (Content)-[$Variable]-(Location); $Variable={authorship, placed, impliedMention, inherentMention}
+        (Content)-[$Variable]-(Tags); $Mention={impliedMention, inherentMention}
     :param G: 
     :param temporalPeriod: 
     :param contentDf: 
     :param nodesPerClass: 
-    :return: 
+    :return:
     '''
     try:
         # (Day)-(Day)
         timeEdges = [(temporalPeriod[i], temporalPeriod[i+1]) for i in range(len(temporalPeriod)-1)]
+        logging.info(f'> Time Edges {len(timeEdges)}')
         
         # (Day)-(Content) edges
-        actionDf = contentDf['timestamp'].apply(pd.Series).reset_index().melt(id_vars='_id').dropna()[['_id', 'value']].set_index('_id')['value']
+        actionDf = pl.unrollListAttr(contentDf.reset_index(), 'timestamp', ['_id'])
+        actionDf = actionDf.set_index('_id')['value']
         actionEdges = list(actionDf.items())
-
         # Make sure every tail is already a node in the graph
         assert(len([e[1] for e in actionEdges if e[1] not in nodesPerClass['time']]) == 0)
+        logging.info(f'> Action Edges {len(actionEdges)}')
 
         # (Content)-(Location) edges
-        locationDf = contentDf['locations'].dropna()
-        locationDf = locationDf.apply(pd.Series).reset_index().melt(id_vars='_id').dropna()[['_id', 'value']].set_index('_id')['value']
-        locationEdges = list(locationDf.items())
-        assert(len([e[1] for e in locationEdges if e[1] not in nodesPerClass['location']]) == 0)
+        locationsDf = pl.unrollListOfDictsAttr(contentDf.reset_index(), 'locations', ['_id'])
+        locationsDf.set_index('_id', inplace=True)
+        sourceEdgeTypes = locationsDf['relationshipType'].tolist()
+        locationEdges = list(locationsDf['label'].items())
+        assert(len([e[1] for e in locationEdges if e[1] not in nodesPerClass['spatial']]) == 0)
+        logging.info(f'> Source Edges {len(locationEdges)}')
 
         # (Content)-(Tags) edges
-        tagDf = contentDf['tags'].dropna()
-        tagDf = tagDf.apply(pd.Series).reset_index().melt(id_vars='_id').dropna()[['_id', 'value']].set_index('_id')['value']
-        tagEdges = list(tagDf.items())
+        tagDf = pl.unrollListOfDictsAttr(contentDf.reset_index(), 'tags', ['_id'])
+        tagDf.set_index('_id', inplace=True)
+        tagEdgeTypes = tagDf['relationshipType'].tolist()
+        tagEdges = list(tagDf['label'].items())
         assert(len([e[1] for e in tagEdges if e[1] not in nodesPerClass['tag']]) == 0)
+        logging.info(f'> Tag Edges {len(tagEdges)}')
 
         # Add them all to the graph
         G.add_edges_from(timeEdges, edgeClass='temporal')
         G.add_edges_from(actionEdges, edgeClass='action')
-        G.add_edges_from(locationEdges, edgeClass='origin')
-        G.add_edges_from(tagEdges, edgeClass='mention')
+        G.add_edges_from(locationEdges, edgeClass=sourceEdgeTypes)
+        G.add_edges_from(tagEdges, edgeClass=tagEdgeTypes)
 
     except Exception as ex:
         print(traceback.format_exc())
@@ -138,21 +145,22 @@ if __name__ == '__main__':
     root.setLevel(logging.DEBUG)
 
     baseDir = '../../data/'
-    platforms = ['Facebook', 'YouTube', 'Google Search', 'Reddit', 'Twitter']
+    platforms = ['Facebook', 'YouTube', 'Google Search', 'Reddit', 'Twitter']     # ,
     minYear, maxYear = 2009, 2021
     # Facebook events force us to require this
 
     # Acquiring params
-    create, loadFromOS, loadFromMongo = False, True, False
+    create, loadFromOS, loadFromMongo = True, False, False
     # Storing Params
-    saveToMongo, saveToOS, saveAsGraphML = False, True, True
+    saveToMongo, saveToOS, saveAsGraphML = False, True, False
     # Data to include
     includePlatform, includeContentType, includeLocationType = True, True, True
 
-    # Make sure we're only acquiring from one source
+    # Make sure we're only acquiring data from one source
     assert(sum(1 for item in [create, loadFromMongo, loadFromOS] if item) == 1)
 
     try:
+        # Set up DB
         client = MongoClient()
         db = client['digitalMe']
         collectionCont = db['content']

@@ -1,7 +1,11 @@
+import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), '..'))  # Add src/ dir to import path
 import traceback
 import logging
 import string
 import random
+from os.path import join
 
 import pandas as pd
 from pymongo import MongoClient
@@ -9,31 +13,7 @@ from rosette.api import API, DocumentParameters, RosetteException
 import bisect
 
 from libs.mongoLib import getPayloadsDfFromDB, updateContentDocsWithRawEntities
-
-# todo - transform this into config file
-platforms = {
-    'Google Search': {
-        'Query': ['query'],
-        'Webpage': ['title'],
-    },
-    'Youtube': {
-        'Query': ['query'],
-        'Video': ['title'],
-    },
-    'Reddit': {
-        'Comment': ['body'],
-        'Post': ['title', 'body'],
-    },
-    'Twitter': {
-        'Tweet': ['body']
-    },
-    'Facebook': {
-        #'Comment': ['body'],
-        #'Post': ['body'],
-        #'Event': ['name'],
-        #'Query': ['query'],
-    }
-}
+from libs.osLib import loadYaml
 
 
 def generateDocuments(df, maxCharsPerDoc):
@@ -126,13 +106,18 @@ if __name__ == '__main__':
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    # DB client
+    # Load config
+    configDir = '../../configs/'
+    config = loadYaml(join(configDir, 'main.yaml'))
+    entityExtractionKeys = {p: loadYaml(join(configDir, configFile))['entityExtractionKeys'] for p, configFile in config['platforms'].items()}
+
+    # Set up DB
     client = MongoClient()
     db = client['digitalMe']
     collection = db['content']
 
     logging.info(f'Loading payloads from DB')
-    df = getPayloadsDfFromDB(collection, platforms)
+    df = getPayloadsDfFromDB(collection, entityExtractionKeys)
     docs, df = generateDocuments(df, maxChars)
 
     # Rosette client

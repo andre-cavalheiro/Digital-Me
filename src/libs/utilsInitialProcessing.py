@@ -50,16 +50,23 @@ def fromDictToDf(data):
     return df
 
 
-def reorganize(data, insertedIds):      # Can't I come up with a better name?
+def invertCollectionPriority(data, insertedIds):
     contentDocsPayload = {}
     for info, locationDocId in zip(data, insertedIds):
         for contentDoc in info['associatedContent']:
-            if contentDoc not in contentDocsPayload.keys():
-                contentDocsPayload[contentDoc] = [locationDocId]
+            if contentDoc['id'] not in contentDocsPayload.keys():
+                contentDocsPayload[contentDoc['id']] = [{
+                    'label': locationDocId,
+                    'relationshipType': contentDoc['relationshipType']
+                }]
             else:
-                contentDocsPayload[contentDoc].append(locationDocId)
+                contentDocsPayload[contentDoc['id']].append({
+                    'label': locationDocId,
+                    'relationshipType': contentDoc['relationshipType']
+                })
 
     return contentDocsPayload
+
 
 def detectAndExtractSubstrings(substrings, text):
     for s in substrings:

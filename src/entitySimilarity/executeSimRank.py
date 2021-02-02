@@ -22,9 +22,11 @@ if __name__ == '__main__':
         # Load graph from OS
         G = nx.read_gpickle(join(baseDir, f'graph.gpickle'))
 
-        sim = nx.simrank_similarity(G)
+        simDict = nx.simrank_similarity(G)      # Calculate one by one? Once per node should take quite a while but should facilitate memory wise.
 
-        savePickle(sim, max_iterations=10)
+        savePickle(simDict, max_iterations=10)
+
+        # TODO - must convert this into a matrice
 
     except Exception as ex:
         print(traceback.format_exc())

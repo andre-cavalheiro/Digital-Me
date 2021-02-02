@@ -25,5 +25,5 @@ class conflictingQIDs(Exception):
 class ContentWithMultipleLocations(Exception):
     pass
 
-class ContentWithoutLocation(Exception):
+class ContentWithoutSource(Exception):
     pass
