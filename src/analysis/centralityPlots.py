@@ -16,14 +16,16 @@ from pymongo import MongoClient
 import libs.networkAnalysis as na
 from libs.mongoLib import updateContentDocs
 import libs.visualization as vz
+from libs.osLib import loadYaml
 
 if __name__ == '__main__':
 
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
-
-    baseDir = '../../data/'
-    outputDir = join(baseDir, 'Centrality')
+    
+    # Load config
+    configDir = '../../configs/'
+    config = loadYaml(join(configDir, 'main.yaml'))
 
     calculateCentrality, loadFromOS = False, True
     saveCentralityToOS, saveCentralityToDB = True, False
@@ -33,11 +35,11 @@ if __name__ == '__main__':
     try:
         if calculateCentrality is True:
             # Load graph from OS
-            G = nx.read_gpickle(join(baseDir, f'graph.gpickle'))
+            G = nx.read_gpickle(join(config['dataDir'], f'graph.gpickle'))
 
             # Power law plot
             degrees = [degree for id, degree in G.degree()]
-            vz.degreeDistWithPowerLaw(degrees, join(outputDir, 'degreeDist'))
+            vz.degreeDistWithPowerLaw(degrees, join(config['centralityDir'], 'degreeDist'))
 
             # Identify node classes
             df = pd.DataFrame.from_dict({n: G.nodes[n]['nodeClass'] for n in G.nodes()}, orient='index', columns=['nodeClass'])
@@ -51,16 +53,16 @@ if __name__ == '__main__':
             df = pd.merge(df, auxDf, left_index=True, right_index=True)
 
             # Calculate centrality values
-            df = na.calculateCentrality(G, df, measurements, saveAsWeGo=True, saveDir=outputDir)
+            df = na.calculateCentrality(G, df, measurements, saveAsWeGo=True, saveDir=config['centralityDir'])
         else:
             if loadFromOS is True:
-                df = pd.read_csv(join(outputDir, f'centralityDf.csv'))
+                df = pd.read_csv(join(config['centralityDir'], f'centralityDf.csv'))
                 nodeClasses = df.nodeClass.unique().tolist()
 
         # Save data if needed
         if saveCentralityToOS:
             logging.info('Saving dataframe to OS')
-            df.to_csv(join(outputDir, 'centralityDf.csv'))
+            df.to_csv(join(config['centralityDir'], 'centralityDf.csv'))
 
         if saveCentralityToDB:
             # TODO - this was not tested
@@ -108,14 +110,14 @@ if __name__ == '__main__':
         g.set_yscale('log')
 
         # Save it
-        plt.savefig(join(outputDir, f'centralityBoxPlot.png'), dpi=100)
+        plt.savefig(join(config['centralityDir'], f'centralityBoxPlot.png'), dpi=100)
         plt.close()
 
         # Another with matplotlib
         logAxis = False
         for m in measurements:
             data = [df[df.nodeClass == c][m].tolist() for c in nodeClasses]
-            vz.drawBoxPlots(data, nodeClasses, logAxis, join(outputDir, f'plt-{m}.png'), showfliers=False, meanline=True)
+            vz.drawBoxPlots(data, nodeClasses, logAxis, join(config['centralityDir'], f'plt-{m}.png'), showfliers=False, meanline=True)
 
     except Exception as ex:
         print(traceback.format_exc())

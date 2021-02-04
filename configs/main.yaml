@@ -5,7 +5,14 @@ platforms:
   Reddit: reddit.yaml
   Twitter: twitter.yaml
 dataDir: '../../data/'
-pipeline:
+plotDir: '../../data/Plots'
+centralityDir: '../../data/Centrality'
+initialPipeline:
   - processContent.py
   - entityExtraction.py
   - processTags.py
+  - createGraph
+analysisPipeline:
+  - activityPlots.py
+  - classDistributionPlots.py
+#  - centralityPlots   # Takes a long time

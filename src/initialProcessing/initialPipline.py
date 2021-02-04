@@ -17,10 +17,10 @@ if __name__ == '__main__':
     configDir = '../../configs/'
     config = loadYaml(join(configDir, 'main.yaml'))
 
-    for script in config['pipeline']:
+    for script in config['initialPipeline']:
         try:
             logging.info(f'>>>>>>>>>>>>>>>>>> CURRENTLY RUNNING {script} <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-            subprocess.run(f'py {join(script)}')
+            subprocess.run(f'py {join(os.getcwd(), script)}')
 
         except Exception as ex:
             print(traceback.format_exc())

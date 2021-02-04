@@ -13,6 +13,7 @@ from bson.objectid import ObjectId
 from mdutils.mdutils import MdUtils
 
 import libs.networkAnalysis as na
+import libs.pandasLib as pl
 from libs.mongoLib import getContentDocsPerPlatform, getAllDocs, getMinMaxDay
 from initialProcessing.createGraph import getGraphRequirments
 
@@ -71,116 +72,97 @@ if __name__ == '__main__':
         # Organize data
         df = data['contentDf']
         df.reset_index(inplace=True)
-
-        # FIXME - I have a function for this now!
-        auxdf = df['timestamp'].apply(pd.Series).reset_index()
-        auxdf = auxdf.melt(id_vars='index')
-        auxdf = auxdf.dropna()[['index', 'value']]
-        auxdf = auxdf.set_index('index')
-        df = pd.merge(auxdf, df, left_index=True, right_index=True)
-        df = df.reset_index(drop=True).rename(columns={'value': 'day'})
-
+        df = pl.unrollListAttr(df.reset_index(), 'timestamp', newAttrName='day', otherColumns=df.drop('timestamp', axis=1).columns.tolist())
         uniqueDays = df.day.unique()
-        payloadForFiles = {}
+        payloadForFiles = {}    # Year | Day | Platform | ContentType | ContentList
 
         for day in uniqueDays:
+
             dayLabel, year = dateLabels[day], day.year
 
+            # Init fileContent_aux1s
             if year not in payloadForFiles.keys():
                 payloadForFiles[year] = {}
-
             payloadForFiles[year][dayLabel] = {}
 
             specificDf = df[df.day == day]
+
+            # Iterate content from this day
             for _, dt in specificDf.iterrows():
                 platform = dt['platform']
                 type = dt['type']
+
                 datapoint = {
                     'body': dt['body'] if isinstance(dt['body'], str) else '',
-                    'tags': dt['tags'] if isinstance(dt['tags'], list) else [],
-                    'source': dt['locations'] if isinstance(dt['locations'], list) else [],
+                    'tags': dt['tags'] if isinstance(dt['tags'], list) else [],     # Lists of {id: , relationshipType}
+                    'source': dt['locations'] if isinstance(dt['locations'], list) else [],  # Lists of {id: , relationshipType}
                 }
+
                 if platform not in payloadForFiles[year][dayLabel].keys():
                     payloadForFiles[year][dayLabel][platform] = {type: [datapoint]}
                 else:
-                    if type  in payloadForFiles[year][dayLabel][platform].keys():
+                    if type in payloadForFiles[year][dayLabel][platform].keys():
                         payloadForFiles[year][dayLabel][platform][type].append(datapoint)
                     else:
                         payloadForFiles[year][dayLabel][platform][type] = [datapoint]
 
-        if singleFile is True:
-            # Create a single file
-            for year, days in payloadForFiles.items():
-                mdFile = MdUtils(file_name=join(outputDir, f'history{year}.md'))
 
-                for day, dt in days.items():
-                    logging.info(f'{day}')
-                    auxFileContent = []
-                    for platform, content in dt.items():
-                        # mdFile.new_header(level=2, title=platform)
-                        auxFileContent.append(f'## {platform}')
+        # Create one file per day
+        for year, days in payloadForFiles.items():
+            for day, dt in days.items():
+                logging.info(f'{day}')
 
-                        placeholder = []
-                        for contentType, payloads in content.items():
-                            # mdFile.new_header(level=3, title=contentType)
-                            placeholder.append(f'### {contentType}')
-                            datapoints = []
-                            for p in payloads:
-                                tags = [f" [[{data['entityDf'].loc[s, 'mentionForms'][0]}]]" for s in p['tags']]    # Choose first mention form by default
-                                sources = [f" [[{data['locationDf'].loc[s, 'label']}]]" for s in p['source']]
+                # Create file
+                mdFile = MdUtils(file_name=join(outputDir, f'{day}.md'), title=f'{day}')
 
-                                attach = []
-                                if len(tags) > 0:
-                                    attach.append(' **Tags:**')
-                                    attach.append(tags)
-                                if len(sources) > 0:
-                                    attach.append(' **Sources:**')
-                                    attach.append(sources)
+                fileContent = []
+                for platform, content in dt.items():
+                    # Write Platform
+                    fileContent.append(f'{platform}')
+                    fileContent_aux1 = []
 
-                                datapoints.append([p['body'].replace('\n', ' '), attach])
-                            placeholder.append(datapoints)
+                    for contentType, contentList in content.items():
+                        # Write content Type
+                        fileContent_aux1.append(contentType)
+                        fileContent_aux2 = []
 
-                        auxFileContent.append(placeholder)
+                        for c in contentList:
+                            # Write Content payload
+                            body = c['body'].replace('\n', ' ')
 
-                    mdFile.new_list([f'[[{day}]]', auxFileContent])
+                            fileContent_aux2.append(body)
+                            fileContent_aux3 = []
+
+                            # Sort connections by content Type
+                            connections = {}
+                            for attach in c['tags']:
+                                if attach['relationshipType'] not in connections.keys():
+                                    connections[attach['relationshipType']] = []
+
+                                tagId = attach['label']
+                                tagMentionForms = data['entityDf'].loc[tagId, 'mentionForms']
+                                connections[attach['relationshipType']].append(tagMentionForms[0])  # FIXME
+
+                            for attach in c['source']:
+                                if attach['relationshipType'] not in connections.keys():
+                                    connections[attach['relationshipType']] = []
+                                sourceId = attach['label']
+                                sourceLabel = data['locationDf'].loc[sourceId, 'label']
+                                connections[attach['relationshipType']].append(sourceLabel)
+
+                            # Write content attachments
+                            for connectionType, targetEntities in connections.items():
+                                fileContent_aux3.append(connectionType)
+                                fileContent_aux3.append(targetEntities)
+
+                            fileContent_aux2.append(fileContent_aux3)
+
+                        fileContent_aux1.append(fileContent_aux2)
+
+                    fileContent.append(fileContent_aux1)
+
+                mdFile.new_list(fileContent)
                 mdFile.create_md_file()
-        else:
-            # Create one file per day
-            for year, days in payloadForFiles.items():
-                for day, dt in days.items():
-                    logging.info(f'{day}')
-                    mdFile = MdUtils(file_name=join(outputDir, f'{day}.md'), title=f'{day}')
-
-                    auxFileContent = []
-                    for platform, content in dt.items():
-                        # mdFile.new_header(level=2, title=platform)
-                        auxFileContent.append(f'{platform}')
-
-                        placeholder = []
-                        for contentType, payloads in content.items():
-                            # mdFile.new_header(level=3, title=contentType)
-                            placeholder.append(f'{contentType}')
-                            datapoints = []
-                            for p in payloads:
-                                tags = [f" [[{data['entityDf'].loc[s, 'mentionForms'][0]}]]" for s in
-                                        p['tags']]  # Choose first mention form by default
-                                sources = [f"[[{data['locationDf'].loc[s, 'label']}]]" for s in p['source']]
-
-                                attach = []
-                                if len(tags) > 0:
-                                    attach.append(' **Tags:**')
-                                    attach.append(tags)
-                                if len(sources) > 0:
-                                    attach.append(' **Sources:**')
-                                    attach.append(sources)
-
-                                datapoints.append([p['body'].replace('\n', ' '), attach])
-                            placeholder.append(datapoints)
-
-                        auxFileContent.append(placeholder)
-
-                    mdFile.new_list(auxFileContent)
-                    mdFile.create_md_file()
 
     except Exception as ex:
         print(traceback.format_exc())

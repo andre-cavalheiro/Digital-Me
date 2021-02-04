@@ -21,18 +21,20 @@ from plotly.offline import plot
 import libs.networkAnalysis as na
 from libs.mongoLib import updateContentDocs
 import libs.visualization as vz
+from libs.osLib import loadYaml
 
 if __name__ == '__main__':
 
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
-
-    baseDir = '../../data/'
-    outputDir = join(baseDir, 'Plots')
-
+    
+    # Load config
+    configDir = '../../configs/'
+    config = loadYaml(join(configDir, 'main.yaml'))
+    
     try:
 
-        G = nx.read_gpickle(join(baseDir, f'graph.gpickle'))
+        G = nx.read_gpickle(join(config['dataDir'], f'graph.gpickle'))
         outputDf = pd.DataFrame(columns=['Class', 'Subclass', 'Count'])
 
         # Content
@@ -83,7 +85,7 @@ if __name__ == '__main__':
         fig.layout.hovermode = False
 
         # fig.layout.hovermode = False
-        plot(fig, filename=join(outputDir, f'treemap-nodes.html'))
+        plot(fig, filename=join(config['plotDir'], f'treemap-nodes.html'))
 
         """
         nodeHierarchy = {
@@ -118,7 +120,7 @@ if __name__ == '__main__':
         fig.layout.hovermode = False
 
         # fig.layout.hovermode = False
-        plot(fig, filename=join(outputDir, f'treemap-nodes.html'))
+        plot(fig, filename=join(config['plotDir'], f'treemap-nodes.html'))
         """
 
     except Exception as ex:

@@ -46,7 +46,7 @@ def getOnlyConnectedGraph(g, prints=True):
         nOriginal, eOriginal = g.number_of_nodes(), g.number_of_edges()
         nKept, eKept = giantComponent.number_of_nodes(), giantComponent.number_of_edges()
         nDropped, eDropped = g.number_of_nodes() - nKept, g.number_of_edges() - eKept
-        print(f'\t - The network has {numComponents} connected components (N: {nOriginal}\t E: {eOriginal}\t)\n '
+        print(f'\t - The network has {numComponents} connected components (N: {nOriginal}\t E: {eOriginal})\n '
               f'\t - Returning only the biggest (N:{nKept}\t E: {eKept})\n'
               f'\t - Dropped a total of {nDropped} nodes and {eDropped} edges\n')
 

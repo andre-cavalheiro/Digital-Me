@@ -19,18 +19,19 @@ from pymongo import MongoClient
 import libs.networkAnalysis as na
 from libs.mongoLib import updateContentDocs
 import libs.visualization as vz
+from libs.osLib import loadYaml
 
 if __name__ == '__main__':
 
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
-    baseDir = '../../data/'
-    outputDir = join(baseDir, 'Plots')
-
+    # Load config
+    configDir = '../../configs/'
+    config = loadYaml(join(configDir, 'main.yaml'))
 
     try:
-        G = nx.read_gpickle(join(baseDir, f'graph.gpickle'))
+        G = nx.read_gpickle(join(config['dataDir'], f'graph.gpickle'))
 
         # Identify temporal period in graph
         timeNodes = [x for x, dt in G.nodes(data=True) if dt['nodeClass'] == 'time']
@@ -58,7 +59,7 @@ if __name__ == '__main__':
 
             # Count platforms
             neighborPlatforms = [G.nodes[n]['platform'] for n in neighborNodes if G.nodes[n]['nodeClass'] == 'content']
-            platformCount = pd.Series(Counter(neighborPlatforms))
+            platformCount = pd.Series(Counter(neighborPlatforms), dtype='object')
             for p, c in platformCount.items():
                 frequencyDf.loc[d, p] = c
 
@@ -89,7 +90,7 @@ if __name__ == '__main__':
         # Make plot
         g = sns.FacetGrid(plotDf, col='Platform', col_wrap=3, height=6, margin_titles=True, xlim=(timeNodes[0], timeNodes[-1]))
         g.map(sns.scatterplot, "Day", "Count", alpha=.6)      # order=['Facebook', 'Google Search', 'YouTube', 'Reddit', 'Twitter']
-        plt.savefig(join(outputDir, f'platformDistOverTime.png'), dpi=100)
+        plt.savefig(join(config['plotDir'], f'platformDistOverTime.png'), dpi=100)
         plt.close()
 
         # Prepare data for content type plot
@@ -106,7 +107,7 @@ if __name__ == '__main__':
         # Make plot
         g = sns.FacetGrid(plotDf, col='Content Type', col_wrap=3, height=6, margin_titles=True, xlim=(timeNodes[0], timeNodes[-1]))
         g.map(sns.scatterplot, "Day", "Count", alpha=.6)
-        plt.savefig(join(outputDir, f'contentDistOverTime.png'), dpi=100)
+        plt.savefig(join(config['plotDir'], f'contentDistOverTime.png'), dpi=100)
         plt.close()
 
         # Make plot for platform/content type
@@ -118,13 +119,13 @@ if __name__ == '__main__':
         g = sns.FacetGrid(combinedFrequencyDf, col='Content Type', hue='Platform', height=5, xlim=(timeNodes[0], timeNodes[-1]))
         g.map(sns.scatterplot, "Day", "Count", alpha=.6)
         g.add_legend()
-        plt.savefig(join(outputDir, f'ContentTypePerPlatform.png'), dpi=100)
+        plt.savefig(join(config['plotDir'], f'ContentTypePerPlatform.png'), dpi=100)
         plt.close()
 
         g = sns.FacetGrid(combinedFrequencyDf, col='Platform', hue='Content Type', height=5, xlim=(timeNodes[0], timeNodes[-1]))
         g.map(sns.scatterplot, "Day", "Count", alpha=.6)
         g.add_legend()
-        plt.savefig(join(outputDir, f'PlatformPerContentType.png'), dpi=100)
+        plt.savefig(join(config['plotDir'], f'PlatformPerContentType.png'), dpi=100)
         plt.close()
 
 
