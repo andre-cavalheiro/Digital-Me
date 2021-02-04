@@ -30,7 +30,7 @@ if __name__ == '__main__':
     calculateCentrality, loadFromOS = False, True
     saveCentralityToOS, saveCentralityToDB = True, False
 
-    measurements = ['degree', 'betweennessParallel']    # 'closeness', 'katz'
+    measurements = ['degree']    # 'betweennessParallel' 'closeness', 'katz'
 
     try:
         if calculateCentrality is True:

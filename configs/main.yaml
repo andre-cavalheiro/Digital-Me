@@ -15,4 +15,4 @@ initialPipeline:
 analysisPipeline:
   - activityPlots.py
   - classDistributionPlots.py
-#  - centralityPlots   # Takes a long time
+  - centralityPlots   # Takes a long time
