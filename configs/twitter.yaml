@@ -3,6 +3,7 @@ file:
   - Twitter/tweet.json
 keysForMerge:
   Post: ~
+
 sourceKeys:
   Post:
     - userMentions
@@ -11,6 +12,7 @@ sourceTypePerKey:
 sourceRelationship:
   userMentions: "InherentMention"
 sourcesToIgnore: []
+
 termsToIgnore: []
 entityExtractionKeys:
   Post:

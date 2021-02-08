@@ -1,0 +1,36 @@
+dataDir: '../../data/'
+outputDir: '../../data/Export'
+platforms:
+    - Twitter
+    - Facebook
+    - YouTube
+    - Google Search
+    - Reddit
+keysToExport:
+  Facebook:
+    Comment:
+      - body
+    Post:
+      - body
+    Query:
+      - query
+  YouTube:
+    Query:
+      - query
+    Video:
+      - title
+  Google Search:
+    Query:
+      - query
+    Webpage:
+      - title
+  Reddit:
+    Comment:
+      - body
+    Post:
+      - title
+      - body
+  Twitter:
+    Post:
+      - body
+

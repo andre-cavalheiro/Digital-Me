@@ -9,6 +9,7 @@ keysForMerge:
   Post: ~
   Query:
     - query
+
 sourceKeys:
   Comment:
     - targetContentAuthor
@@ -28,6 +29,7 @@ sourceRelationship:
   mentions: "InherentMention"
 sourcesToIgnore:
   - Self
+
 termsToIgnore: []
 entityExtractionKeys:
   Comment: ~

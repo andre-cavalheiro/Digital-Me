@@ -17,17 +17,31 @@ import libs.pandasLib as pl
 from libs.mongoLib import getContentDocsPerPlatform, getAllDocs, getMinMaxDay
 from initialProcessing.createGraph import getGraphRequirments
 
+from libs.osLib import loadYaml
+
+def getDayFinisher(myDate):
+    date_suffix = ["th", "st", "nd", "rd"]
+
+    if myDate % 10 in [1, 2, 3] and myDate not in [11, 12, 13]:
+        return date_suffix[myDate % 10]
+    else:
+        return date_suffix[0]
+
 
 if __name__ == '__main__':
 
+    # Set up logger
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
+    
+    # Load config
+    configDir = '../../configs/'
+    config = loadYaml(join(configDir, 'export.yaml'))
 
-    baseDir, outputDir = '../../data/', '../../data/Roam'
-    platforms = ['Twitter', 'Facebook', 'YouTube', 'Google Search', 'Reddit']
-    minYear, maxYear = 2009, 2021
+    platforms = config['platforms']
+    exportKeys = {plt: dt for plt, dt in config['keysToExport'].items()}
+    minYear, maxYear = 2009, 2020
     singleFile = False
-
 
     try:
         # Set up DB
@@ -53,19 +67,10 @@ if __name__ == '__main__':
         # Transform lists to dataframe for faster operations
         data['contentDf'] = pd.DataFrame(data['contentList']).set_index('_id')
         data['contentDf'].timestamp = data['contentDf'].timestamp.apply(lambda x: [d.date() for d in x])
-        data['contentDf'] = data['contentDf'][['platform', 'type', 'timestamp', 'body', 'tags', 'locations']]
+        # data['contentDf'] = data['contentDf'][['platform', 'type', 'timestamp', 'body', 'tags', 'locations']]
 
         data['locationDf'] = pd.DataFrame(data['locationsList']).set_index('_id')
         data['entityDf'] = pd.DataFrame(data['entitiesList']).set_index('_id')
-
-        # Create one Roam page per Day
-        def getDayFinisher(myDate):
-            date_suffix = ["th", "st", "nd", "rd"]
-
-            if myDate % 10 in [1, 2, 3] and myDate not in [11, 12, 13]:
-                return date_suffix[myDate % 10]
-            else:
-                return date_suffix[0]
         dateLabels = {d: d.strftime(f'%B %dRR, %Y').replace('RR', getDayFinisher(d.day)) for d in
                       data['temporalPeriod']}
 
@@ -75,7 +80,6 @@ if __name__ == '__main__':
         df = pl.unrollListAttr(df.reset_index(), 'timestamp', newAttrName='day', otherColumns=df.drop('timestamp', axis=1).columns.tolist())
         uniqueDays = df.day.unique()
         payloadForFiles = {}    # Year | Day | Platform | ContentType | ContentList
-
         for day in uniqueDays:
 
             dayLabel, year = dateLabels[day], day.year
@@ -91,12 +95,17 @@ if __name__ == '__main__':
             for _, dt in specificDf.iterrows():
                 platform = dt['platform']
                 type = dt['type']
-
-                datapoint = {
-                    'body': dt['body'] if isinstance(dt['body'], str) else '',
-                    'tags': dt['tags'] if isinstance(dt['tags'], list) else [],     # Lists of {id: , relationshipType}
-                    'source': dt['locations'] if isinstance(dt['locations'], list) else [],  # Lists of {id: , relationshipType}
-                }
+                try:
+                    payloadKey = exportKeys[platform][type]     # FIXME
+                    r=1
+                    datapoint = {
+                        'body': dt[payloadKey[0]] if isinstance(dt['body'], str) else '',
+                        'tags': dt['tags'] if 'tags' in dt.keys() and isinstance(dt['tags'], list) else [],     # Lists of {id: , relationshipType}
+                        'source': dt['locations'] if isinstance(dt['locations'], list) else [],  # Lists of {id: , relationshipType}
+                    }
+                except Exception as ex:
+                    print(traceback.format_exc())
+                    breakpoint()
 
                 if platform not in payloadForFiles[year][dayLabel].keys():
                     payloadForFiles[year][dayLabel][platform] = {type: [datapoint]}
@@ -106,31 +115,27 @@ if __name__ == '__main__':
                     else:
                         payloadForFiles[year][dayLabel][platform][type] = [datapoint]
 
-
         # Create one file per day
         for year, days in payloadForFiles.items():
             for day, dt in days.items():
                 logging.info(f'{day}')
 
                 # Create file
-                mdFile = MdUtils(file_name=join(outputDir, f'{day}.md'), title=f'{day}')
+                mdFile = MdUtils(file_name=join(config['outputDir'], f'{day}.md'), title=f'{day}')
 
-                fileContent = []
                 for platform, content in dt.items():
                     # Write Platform
-                    fileContent.append(f'{platform}')
+                    mdFile.new_header(level=1, title=platform)
                     fileContent_aux1 = []
 
                     for contentType, contentList in content.items():
                         # Write content Type
-                        fileContent_aux1.append(contentType)
+                        mdFile.new_header(level=2, title=contentType)
                         fileContent_aux2 = []
 
                         for c in contentList:
-                            # Write Content payload
                             body = c['body'].replace('\n', ' ')
 
-                            fileContent_aux2.append(body)
                             fileContent_aux3 = []
 
                             # Sort connections by content Type
@@ -141,28 +146,39 @@ if __name__ == '__main__':
 
                                 tagId = attach['label']
                                 tagMentionForms = data['entityDf'].loc[tagId, 'mentionForms']
-                                connections[attach['relationshipType']].append(tagMentionForms[0])  # FIXME
+
+                                # connections[attach['relationshipType']].append(tagMentionForms[0])  # FIXME
+
+                                for t in tagMentionForms:
+                                    if t in body:
+                                        body.replace(t, f'[[{t}]]')
+                                        connections[attach['relationshipType']].append(f'[[{t}]]')
+                                        break
 
                             for attach in c['source']:
                                 if attach['relationshipType'] not in connections.keys():
                                     connections[attach['relationshipType']] = []
                                 sourceId = attach['label']
                                 sourceLabel = data['locationDf'].loc[sourceId, 'label']
-                                connections[attach['relationshipType']].append(sourceLabel)
+                                connections[attach['relationshipType']].append(f'[[{sourceLabel}]]')
 
-                            # Write content attachments
+                                if sourceLabel in body:
+                                    body.replace(sourceLabel, f'[[{sourceLabel}]]')
+                                    connections[attach['relationshipType']].append(sourceLabel)
+                                    break
+
+                            # Write connections
                             for connectionType, targetEntities in connections.items():
-                                fileContent_aux3.append(connectionType)
+                                fileContent_aux3.append(f'**{connectionType.capitalize()}**')
                                 fileContent_aux3.append(targetEntities)
 
+                            fileContent_aux2.append(body)
                             fileContent_aux2.append(fileContent_aux3)
 
-                        fileContent_aux1.append(fileContent_aux2)
+                        mdFile.new_list(fileContent_aux2)
 
-                    fileContent.append(fileContent_aux1)
-
-                mdFile.new_list(fileContent)
                 mdFile.create_md_file()
+            break
 
     except Exception as ex:
         print(traceback.format_exc())

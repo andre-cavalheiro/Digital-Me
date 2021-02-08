@@ -1,9 +1,9 @@
 platforms:
-  Facebook: facebook.yaml
-  YouTube: youtube.yaml
   GoogleSearch: googleSearch.yaml
-  Reddit: reddit.yaml
+  YouTube: youtube.yaml
   Twitter: twitter.yaml
+  Reddit: reddit.yaml
+  Facebook: facebook.yaml
 dataDir: '../../data/'
 plotDir: '../../data/Plots'
 centralityDir: '../../data/Centrality'

@@ -1,10 +1,13 @@
 import traceback
+import logging
 
 from pymongo import MongoClient
 import pandas as pd
 from pandas.io.json import json_normalize
 
 import libs.pandasLib as pl
+from bson.objectid import ObjectId
+
 
 def getPayloadsDfFromDB(collection, entityExtractionKeys):
     '''
@@ -140,3 +143,13 @@ def saveMany(collection, data):
         print(traceback.format_exc())
     return insertedIds
 
+
+def getFromId(id, *collections):
+    for c in collections:
+        results = c.find({'_id': ObjectId(id)})
+        results = list(results)
+        if len(results) > 0:
+            if len(results) > 1:
+                logging.warning(f'More than 1 result when searching from ID - {id}')
+            return results[0], c
+    raise Exception('No ID match')
