@@ -26,7 +26,7 @@ if __name__ == '__main__':
     root.setLevel(logging.DEBUG)
 
     # Load config
-    baseDir, outputDir = '../../data', '../../data/adjacencyMatrices'
+    baseDir, outputDir = '../../data', '../../data/plots'
     configDir = '../../configs/'
 
     config = ol.loadYaml(join(configDir, 'main.yaml'))
@@ -61,6 +61,6 @@ if __name__ == '__main__':
 
             calmap.calendarplot(dayFrequencies, monthticks=3, daylabels='MTWTFSS', dayticks=True, fillcolor='grey', linewidth=0, fig_kws=dict(figsize=(16, 8)))
             plt.title(entityLabel)
-            plt.savefig(f'calendarHeatMap-{entityLabel}.png')
+            plt.savefig(join(outputDir, f'calendarHeatMap-{entityLabel}.png'))
     except Exception as ex:
         print(traceback.format_exc())

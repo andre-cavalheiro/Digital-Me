@@ -147,3 +147,8 @@ The resulting network is a heterogeneous graph, guaranteed to have a single comp
   <img src="docs/images/centralityBoxPlot.png" alt=""/>
   <figcaption>Fig 7. - Variance of centrality values for each object type in the network.</figcaption>
 </p>  
+
+<p align="center">
+  <img src="docs/images/calendarHeatMap-China.png" alt=""/>
+  <figcaption>Fig 8. - Calendar HeatMap of the China Tag.</figcaption>
+</p>  
