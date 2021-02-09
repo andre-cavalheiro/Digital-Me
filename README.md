@@ -13,11 +13,13 @@ The currently supported platforms are the following:
 
 # Requirements
 
-**To Use** this project on your own data, you must download your personal files from each platform and save them in the ```data/``` directory with the appropriate name. 
+**To Use** this project on your own data, you must download your personal files from each platform and save them in the ```data/``` directory with the appropriate name. You may read more on this in the [guide on downloading your personal files](https://github.com/andre-cavalheiro/Digital-Me/tree/main/docs/guides/downloadingPersonalData.md).
 
-High-level parameters are specified in the main configuration file in ```configs/main.yaml```. There is one aditional configuration file for platform that helps determine how its files are processed.  
+The main configuration file is in ```configs/main.yaml```. You may read more on how to configure the pipeline [here](https://github.com/andre-cavalheiro/Digital-Me/tree/main/docs/guides/configDocs.md). There is one additional config file for each platform.
  
-The available functions and its respecitve are as follows:
+To simplify this project's usage, I have created several pipelines, each one composed of several scripts. You may choose only to run a specific step by running the respective script. Nonetheless, you must start by running the *initialPipeline* which is required for further operations.
+
+The pipelines are as follows: 
  
 ### Initial Processing
 
@@ -30,22 +32,18 @@ Tasks:
 - Tranform the processed data into a network containing the following object types: Days, Content, Sources, Tags.
 
 ### Basic Analysis
- (requires **Initial Processing**)
 
 ```python src/analysis/analysisPipeline.py``` 
 
 Tasks:   
-- Plot your activity per platform and content type (Example in [Fig X]() and [Fig X]())
-- Plot the object type count in the resulting network (Example in [Fig X]())
-- Plot the centrality distribution of each object type (several centrality measures can be select but beware of long execution times) (Example in [Fig X]())
+- Plot the object type count in the resulting network (Example in Fig 4. [here](#analysis))
+- Plot your activity per platform and content type (Example in Fig. 5 and Fig 6 [here](#analysis))
+- Plot the centrality distribution of each object type (several centrality measures can be select but beware of long execution times) (Example in Fig 7 [here](#analysis))
+
 
 ### Roam/Obsidian export
 
-```python src/initialProcessing/roamExport.py``` 
-
-### Calendar Heatmap for specific entities
-
-```raise notImplemented()``` 
+```python src/exports/obsidian.py``` 
 
 # Processing into MongoDB
 
@@ -93,80 +91,94 @@ Finally, to provide conceptual context to content objects, we offer the possibil
 
 # Graph conversion
 
-Previously we defined three types of objects: content, sources, and tags.  In order to accommodate the temporal aspect we introduce a 4th type of object: time, each one representing a day in the user's life. We can now transform the user's history into a network using the validating schema that describes the interactions between these object types. 
+Previously we defined three types of objects: content, sources, and tags.  In order to accommodate the temporal aspect we introduce a 4th type of object: time - that represents a day in the user's life. We can now transform the user's history into a network using the validating schema bellow which describes how these object interact. 
 
 <p align="center">
   <img src="docs/images/mainSchema.png" alt=""  width="50%" />
-  <figcaption>Fig 1. </figcaption>
+  <br>
+  <em>Fig 1. - Network's validating schema.</em>
 </p>  
 
-Each object type is represented by a shape, and the interactions between them as connections between those shapes. Each box (rectangle) represents a shape that is bounded by a set of constraints. Nodes conform to a shape if and only if they satisfy all constraints. 
+Fig 1 can be described as follows. A shape (box) represents each object type. Connections between those shapes represent interactions between object types. Shapes are bounded by constraints. Nodes conform to a shape if and only if they satisfy all constraints. 
 There are two types of constraints: 
-- The existence of certain attributes within a shape 
-- Or a connection and number of nodes conforming to a particular shape that the conforming node can relate to via a given edge. For example:
+- The existence of specific attributes. 
+- The number of nodes conforming to a particular shape that the node in question can relate to via a specific edge type. For example:
     - [0..1] denotes either no connection or precisely one
     - [1..*] denotes one-to-many
     - [1..1] denotes precisely one
 
-So making a summary of the procedure: We create a chain of time nodes, one for each day in the user's life. These days may connect to content nodes via an action edge. This represents the interaction between the user and a piece of content on a given day. In order to provide context to each content we may connect to tags and sources. Each piece of content can only have one orign connection to a source node but it may mention any number of tags or other sources.  
+Summarizing in text the validating schema of Fig 1: We create a chain of time nodes, one for each day in the user's life. These days may connect to content nodes via an action edge. This represents the interaction between the user and a piece of content on a given day. To provide context to each content, we may connect it to tags and sources. Each piece of content can only have one origin connection to a source node. Still, it may mention any number of tags or other sources.  
 
-
-In order to further to improve the descriptive power of the network, we define a hierarchy of terms for each object class. These will serve as the terminology  of the network, providing semantic value to the connections in it and allowing us to study more complex dynamics. The __type__ attributes in each node or edge hold the values of a **leaf** in the respective hierarchy (Figs 2 and 3).
+In order to further to improve the descriptive power of the network, we define a hierarchy of terms for each object class. These will serve as the terminology, providing semantic value and allowing us to study more complex dynamics. The __type__ attributes in each node/edge holds the value of a **leaf** in the respective hierarchy (Figs 2/3).
 
 <p align="center">
   <img src="docs/images/nodeHierarchy.png" alt=""/>
-  <figcaption>Fig 2. </figcaption>
+  <br>
+  <em>Fig 2. - Network's semantic schema for nodes.</em>
 </p>  
-
 
 <p align="center">
   <img src="docs/images/edgeHierarchy.png" alt="" width="55%"/>
-  <figcaption>Fig 3. </figcaption>
+  <br>
+  <em>Fig 3. - Network's semantic schema for edges.</em>
 </p>  
 
 The resulting network is a heterogeneous graph, guaranteed to have a single component due to the chain of daily nodes.
 
-# Plot Gallery
+# Analysis
+(#analysis)
 
 <p align="center">
   <img src="docs/images/classDistribution.PNG" alt=""/>
-  <figcaption>Fig 4. Count of object types for all hierarchical levels.</figcaption>
+  <br>
+  <em>Fig 4. - Count of object types for all semantic levels.</em>
 </p>  
 
 <p align="center">
   <img src="docs/images/ContentTypePerPlatform.png" alt=""/>
-  <figcaption>Fig 5. Temporal distribution of content conception, highlighting the respective platforms.</figcaption>
+  <br>
+  <em>Fig 5. - Temporal distribution of content conception, highlighting the respective platforms.</em>
 </p>  
 
 <p align="center">
   <img src="docs/images/PlatformPerContentType.png" alt=""/>
-  <figcaption>Fig 6.Temporal distribution of platforms usage, highlighting the content types. </figcaption>
+  <br>
+  <em>Fig 6. - Temporal distribution of platform usage, highlighting the content types.</em>
 </p>  
 
 <p align="center">
-  <img src="docs/images/centralityBoxPlot.png" alt=""/>
-  <figcaption>Fig 7. - Variance of centrality values for each object type in the network.</figcaption>
+  <img src="docs/images/centralityBoxPlot.png" alt="" height="50%" width="50%"/>
+  <br>
+  <em>Fig 7. - Variance of centrality values for each object type in the network.</em>
 </p>  
 
 <p align="center">
-  <img src="docs/images/calendarHeatMap-China.png" alt=""/>
-  <figcaption>Fig 8. - Calendar HeatMap of the China Tag.</figcaption>
+  <img src="docs/images/calendarHeatMap-China.png" alt="" height="50%" width="50%"/>
+  <br>
+  <em>Fig 8. - Calendar HeatMap for the "China" Tag.</em>
 </p>  
 
+# Obsidian Export
+
 <p align="center">
-  <img src="docs/images/obsidianChinaNode.png" alt="" height="60%"/>
-  <figcaption>Fig 9.- Obsidian. China Tag local map.</figcaption>
+  <img src="docs/images/obsidianDay.png" alt="" height="60%"/>
+  <br>
+  <em>Fig 10. - Day page in Obsidian </em>
+</p>
+
+<p align="center">
+  <img src="docs/images/obsidianChinaNode.png" alt="" height="40%"/>
+  <br>
+  <em>Fig 9.- Obsidian local graph for the "China" Tag.</em>
 </p>  
 
 <p align="center">
   <img src="docs/images/obsidianFull.png" alt=""/>
-  <figcaption>Fig 11. - Obsidian. Full Personal Graph.</figcaption>
+  <br>
+  <em>Fig 10. - Obsidian full network graph.</em>
 </p>  
 
 
-<p align="center">
-  <img src="docs/images/obsidianDay.png" alt="" width="90%"/>
-  <figcaption>Fig 10. - Obsidian. Example of a day page</figcaption>
-</p>
+
   
 
