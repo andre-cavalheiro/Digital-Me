@@ -3,6 +3,25 @@ import numpy as np
 import pandas as pd
 import powerlaw     # DOCS: https://pythonhosted.org/powerlaw/
 
+def similarityMatrice(M, xlabels, ylabels, path):
+    fig, ax = plt.subplots(figsize=(16, 16))
+
+    # Plot the matrix
+    ax.matshow(M, cmap="Reds")
+
+    ax = plt.gca()
+
+    # Set the plot labels
+    ax.set_xticklabels(xlabels)
+    ax.set_yticklabels(ylabels)
+
+    # Add text to the plot showing the values at that point
+    n = M.shape[0]
+    for i in range(n):
+        for j in range(n):
+            plt.text(j, i, M[i, j], horizontalalignment='center', verticalalignment='center')
+
+    plt.savefig(path)
 
 def drawBoxPlots(data, xlabels, logAxis, savingPath, **kargs):
     # This is lame and ugly, the seaborn ones are much prefered.

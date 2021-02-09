@@ -27,7 +27,7 @@ if __name__ == '__main__':
     configDir = '../../configs/'
     config = loadYaml(join(configDir, 'main.yaml'))
 
-    calculateCentrality, loadFromOS = False, True
+    calculateCentrality, loadFromOS = True, False
     saveCentralityToOS, saveCentralityToDB = True, False
 
     measurements = ['degree']    # 'betweennessParallel' 'closeness', 'katz'
@@ -93,7 +93,7 @@ if __name__ == '__main__':
             'time': 'Time',
             'content': 'Content',
             'tag': 'Tag',
-            'location': 'Location'
+            'spatial': 'Spatial'
         }
         plotDf['measure'] = plotDf['measure'].apply(lambda x: measurementsMapping[x])
         plotDf['nodeClass'] = plotDf['nodeClass'].apply(lambda x: classMapping[x])

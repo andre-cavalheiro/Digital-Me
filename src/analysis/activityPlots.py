@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
         logging.info('Calculating frequencies from graph')
         for d in timeNodes:
-            neighborNodes = list(G.neighbors(d))
+            neighborNodes = list(G.numNeighbors(d))
 
             # Count platforms
             neighborPlatforms = [G.nodes[n]['platform'] for n in neighborNodes if G.nodes[n]['nodeClass'] == 'content']

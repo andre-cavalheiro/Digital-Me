@@ -20,42 +20,36 @@ if __name__ == '__main__':
     root.setLevel(logging.DEBUG)
 
     baseDir, outputDir = '../../data', '../../data/adjacencyMatrices'
-    loadNodeMappings, loadAdjacencies = True, False
+    loadIDtoTempIndexs, loadAdjacencies = False, False
 
     classMapping = {
         'time': 'T',
         'content': 'C',
         'tag': 'G',
-        'location': 'L',
+        'spatial': 'L',
     }
 
     try:
         from scipy import sparse
 
-        metapath = ['time', 'content', 'time']    # ['location', 'content', 'location']     # ['tag', 'content', 'tag']
+        metapath = ['time', 'content', 'time']     # ['spatial', 'content', 'spatial']  #['time', 'content', 'time'] # ['tag', 'content', 'tag']
         metapath = [classMapping[t] for t in metapath]
 
         # Load graph from OS
         G = nx.read_gpickle(join(baseDir, f'graph.gpickle'))
 
-        # Change IDs from MongoDB objects to integers for a more convenient slicing
-        if loadNodeMappings is True:
-            nodeMapping = ol.loadPickle(join(outputDir, f'nodeMapping.pickle'))
-        else:
-            it, nodeMapping = 0, {}
-            for id in G.nodes:
-                nodeMapping[id] = it
-                it += 1
-            ol.savePickle(nodeMapping, join(outputDir, f'nodeMapping.pickle'))
-        G = nx.relabel_nodes(G, nodeMapping)
-
         # Get node list per class type
-        classPerNode = nx.get_node_attributes(G, "nodeClass")
+        classPerID = nx.get_node_attributes(G, "nodeClass")
         nodesPerClass = {}
-        for key, val in classPerNode.items():
-            nodesPerClass[classMapping[val]] = nodesPerClass.get(classMapping[val], []) + [key]
+        for id, class_ in classPerID.items():
+            classDim = classMapping[class_]
+            nodesPerClass[classDim] = nodesPerClass.get(classDim, []) + [id]  # Error, spatial
 
-        # Identify adjacency matrices necessary for specific metapath
+        # Save Indexes in SimilarityM with respect to mongoIDs
+        IdToIndex = {id: idx for idx, id in enumerate(nodesPerClass[metapath[0]])}
+        ol.savePickle(IdToIndex, join(outputDir, f'IdToIndexMapping-{metapath[0]}.pickle'))
+
+        # Identify adjacency matrices necessary for specific meta-path
         classCombinations = [(metapath[i], metapath[i + 1]) for i in range(len(metapath) - 1)]
 
         # Get adjacency matrices

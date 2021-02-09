@@ -26,11 +26,10 @@ if __name__ == '__main__':
     root.setLevel(logging.DEBUG)
 
     # Load config
-    baseDir, outputDir = '../../data', '../../data/plots'
+    baseDir, outputDir = '../../data', '../../data/Plots'
     configDir = '../../configs/'
 
     config = ol.loadYaml(join(configDir, 'main.yaml'))
-    nodeMapping = ol.loadPickle(join(outputDir, f'nodeMapping.pickle'))
 
     IDs = ['60199a05768eb6dcf79c67b3']    # Only valid: Tags and Sources
 

@@ -97,9 +97,8 @@ if __name__ == '__main__':
                 type = dt['type']
                 try:
                     payloadKey = exportKeys[platform][type]     # FIXME
-                    r=1
                     datapoint = {
-                        'body': dt[payloadKey[0]] if isinstance(dt['body'], str) else '',
+                        'body': dt[payloadKey[0]] if isinstance(dt[payloadKey[0]], str) else '',
                         'tags': dt['tags'] if 'tags' in dt.keys() and isinstance(dt['tags'], list) else [],     # Lists of {id: , relationshipType}
                         'source': dt['locations'] if isinstance(dt['locations'], list) else [],  # Lists of {id: , relationshipType}
                     }

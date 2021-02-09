@@ -129,7 +129,7 @@ The resulting network is a heterogeneous graph, guaranteed to have a single comp
 # Plot Gallery
 
 <p align="center">
-  <img src="docs/images/classDistribution.png" alt=""/>
+  <img src="docs/images/classDistribution.PNG" alt=""/>
   <figcaption>Fig 4. Count of object types for all hierarchical levels.</figcaption>
 </p>  
 
@@ -152,3 +152,19 @@ The resulting network is a heterogeneous graph, guaranteed to have a single comp
   <img src="docs/images/calendarHeatMap-China.png" alt=""/>
   <figcaption>Fig 8. - Calendar HeatMap of the China Tag.</figcaption>
 </p>  
+
+<p align="center">
+  <img src="docs/images/obsidianChinaNode.png" alt=""/>
+  <figcaption>Fig 9.- Obsidian. China Tag local map.</figcaption>
+</p>  
+
+<p align="center">
+  <img src="docs/images/obsidianDay.png" alt=""/>
+  <figcaption>Fig 10. - Obsidian. Example of a day page</figcaption>
+</p>
+  
+<p align="center">
+  <img src="docs/images/obsidianFull.png" alt=""/>
+  <figcaption>Fig 11. - Obsidian. Full Personal Graph.</figcaption>
+</p>  
+
