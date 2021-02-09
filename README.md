@@ -154,17 +154,19 @@ The resulting network is a heterogeneous graph, guaranteed to have a single comp
 </p>  
 
 <p align="center">
-  <img src="docs/images/obsidianChinaNode.png" alt=""/>
+  <img src="docs/images/obsidianChinaNode.png" alt="" height="60%"/>
   <figcaption>Fig 9.- Obsidian. China Tag local map.</figcaption>
 </p>  
 
 <p align="center">
-  <img src="docs/images/obsidianDay.png" alt=""/>
-  <figcaption>Fig 10. - Obsidian. Example of a day page</figcaption>
-</p>
-  
-<p align="center">
   <img src="docs/images/obsidianFull.png" alt=""/>
   <figcaption>Fig 11. - Obsidian. Full Personal Graph.</figcaption>
 </p>  
+
+
+<p align="center">
+  <img src="docs/images/obsidianDay.png" alt="" width="90%"/>
+  <figcaption>Fig 10. - Obsidian. Example of a day page</figcaption>
+</p>
+  
 
