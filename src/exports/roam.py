@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     platforms = config['platforms']
     exportKeys = {plt: dt for plt, dt in config['keysToExport'].items()}
-    minYear, maxYear = 2009, 2020
+    minYear, maxYear = 2009, 2021
     singleFile = False
 
     try:
@@ -97,8 +97,9 @@ if __name__ == '__main__':
                 type = dt['type']
                 try:
                     payloadKey = exportKeys[platform][type]     # FIXME
+                    r=1
                     datapoint = {
-                        'body': dt[payloadKey[0]] if isinstance(dt[payloadKey[0]], str) else '',
+                        'body': dt[payloadKey[0]] if isinstance(dt['body'], str) else '',
                         'tags': dt['tags'] if 'tags' in dt.keys() and isinstance(dt['tags'], list) else [],     # Lists of {id: , relationshipType}
                         'source': dt['locations'] if isinstance(dt['locations'], list) else [],  # Lists of {id: , relationshipType}
                     }
@@ -122,17 +123,17 @@ if __name__ == '__main__':
                 # Create file
                 mdFile = MdUtils(file_name=join(config['outputDir'], f'{day}.md'), title=f'{day}')
 
+                fileContent = []
                 for platform, content in dt.items():
                     # Write Platform
-                    mdFile.new_header(level=1, title=platform)
                     fileContent_aux1 = []
 
                     for contentType, contentList in content.items():
                         # Write content Type
-                        mdFile.new_header(level=2, title=contentType)
                         fileContent_aux2 = []
 
                         for c in contentList:
+                            # Write Content payload
                             body = c['body'].replace('\n', ' ')
 
                             fileContent_aux3 = []
@@ -145,13 +146,12 @@ if __name__ == '__main__':
 
                                 tagId = attach['label']
                                 tagMentionForms = data['entityDf'].loc[tagId, 'mentionForms']
-
                                 # connections[attach['relationshipType']].append(tagMentionForms[0])  # FIXME
 
                                 for t in tagMentionForms:
                                     if t in body:
                                         body.replace(t, f'[[{t}]]')
-                                        connections[attach['relationshipType']].append(f'[[{t}]]')
+                                        connections[attach['relationshipType']].append(t)
                                         break
 
                             for attach in c['source']:
@@ -159,7 +159,7 @@ if __name__ == '__main__':
                                     connections[attach['relationshipType']] = []
                                 sourceId = attach['label']
                                 sourceLabel = data['locationDf'].loc[sourceId, 'label']
-                                connections[attach['relationshipType']].append(f'[[{sourceLabel}]]')
+                                connections[attach['relationshipType']].append(sourceLabel)
 
                                 if sourceLabel in body:
                                     body.replace(sourceLabel, f'[[{sourceLabel}]]')
@@ -168,16 +168,20 @@ if __name__ == '__main__':
 
                             # Write connections
                             for connectionType, targetEntities in connections.items():
-                                fileContent_aux3.append(f'**{connectionType.capitalize()}**')
+                                fileContent_aux3.append(connectionType)
                                 fileContent_aux3.append(targetEntities)
 
                             fileContent_aux2.append(body)
                             fileContent_aux2.append(fileContent_aux3)
 
-                        mdFile.new_list(fileContent_aux2)
+                        fileContent_aux1.append(contentType)
+                        fileContent_aux1.append(fileContent_aux2)
 
+                    fileContent.append(f'{platform}')
+                    fileContent.append(fileContent_aux1)
+
+                mdFile.new_list(fileContent)
                 mdFile.create_md_file()
-            break
 
     except Exception as ex:
         print(traceback.format_exc())

@@ -121,7 +121,7 @@ if __name__ == '__main__':
     docs, df = generateDocuments(df, maxChars)
 
     # Rosette client
-    rosetteClient = API(user_key='4cc63b31af87b2e30ae15f511483ccd5')
+    rosetteClient = API(user_key=config['rosetteKey'])
 
     logging.info(f'Created {len(docs)} documents')
     for it, doc in enumerate(docs):

@@ -1,5 +1,5 @@
 platforms:
-  GoogleSearch: googleSearch.yaml
+  Google Search: googleSearch.yaml
   YouTube: youtube.yaml
   Twitter: twitter.yaml
   Reddit: reddit.yaml
@@ -7,6 +7,7 @@ platforms:
 dataDir: '../../data/'
 plotDir: '../../data/Plots'
 centralityDir: '../../data/Centrality'
+rosetteKey: '98e7687e885d717dee057725a2c1c6e0'
 initialPipeline:
   - processContent.py
   - entityExtraction.py

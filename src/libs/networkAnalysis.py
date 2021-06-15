@@ -70,18 +70,6 @@ def adjacencyBetweenTypes(G,  nodesPerClass, classA, classB):
     return adjacencyM
 
 
-def generalNetworkStats(degreeValues):
-    '''
-    :param degreeValues:
-    :return:
-    '''
-    alpha, sigma = fitPowerLaw(degreeValues)
-
-    avgDegree, maxDegree, minDegree, fstP, sndP, trdP = getStatistics(degreeValues)
-
-    return avgDegree, maxDegree, minDegree, fstP, sndP, trdP, alpha, sigma
-
-
 def getStatistics(arrayOfVals):
     '''
     :param arrayOfVals: List of degree values.
@@ -104,6 +92,18 @@ def fitPowerLaw(degrees):
     alpha, sigma = fit.power_law.alpha, fit.power_law.sigma
     print('alpha= ', fit.power_law.alpha, '  sigma= ', fit.power_law.sigma)
     return alpha, sigma
+
+def transitivity(G):
+    # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.cluster.average_clustering.html
+    return nx.average_clustering(G)
+
+def diameter(G):
+    # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.distance_measures.diameter.html
+    return nx.diameter(G)
+
+def averagePathLen(G):
+    # https://networkx.org/documentation/networkx-1.3/reference/generated/networkx.average_shortest_path_length.html
+    return nx.average_shortest_path_length(G)
 
 
 def betweenness_centrality_parallel(G, processes=None):

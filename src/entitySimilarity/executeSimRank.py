@@ -19,26 +19,29 @@ if __name__ == '__main__':
 
     baseDir, outputDir = '../../data', '../../data/adjacencyMatrices'
 
-    allCombinations = True  # Takes a lot of memory
-    indexesToCalc = []
+    allCombinations = False  # Takes a lot of memory
 
     try:
         # Load graph from OS
         G = nx.read_gpickle(join(baseDir, f'graph.gpickle'))
-        nodeMapping = ol.loadPickle(join(outputDir, f'nodeMapping.pickle'))
 
         if allCombinations is True:
-            simDict = nx.simrank_similarity(G)      # Calculate one by one? Once per node should take quite a while but should facilitate memory wise.
-            savePickle(simDict, max_iterations=10)
+            simDict = nx.simrank_similarity(G, max_iterations=10)      # Calculate one by one? Once per node should take quite a while but should facilitate memory wise.
+            savePickle(simDict, 'SimRank-similarity')
         else:
-            results = {}
-            for i in indexesToCalc:
-                simDict = nx.simrank_similarity(G, source=i)
-                results[i] = simDict
-            savePickle(results, max_iterations=10)
-
-
-
+            print('Loading selected nodes')
+            indexesToCalcPerClass = ol.loadPickle(join(outputDir, 'selectedNodes'))
+            for class_, indexesToCalc in indexesToCalcPerClass.items():
+                print(class_)
+                results = {}
+                for source in indexesToCalc:
+                    targets = [n for n in indexesToCalc if n != source]
+                    for t in targets:
+                        print(f'-> {t}')
+                        sim = nx.simrank_similarity(G, source=source, target=t, max_iterations=3)
+                        print(sim)
+                        results[source][t] = sim
+                savePickle(results, f'SimRank-similarity-specific-{class_}')
 
     except Exception as ex:
         print(traceback.format_exc())

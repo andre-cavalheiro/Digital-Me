@@ -31,7 +31,8 @@ if __name__ == '__main__':
 
     config = ol.loadYaml(join(configDir, 'main.yaml'))
 
-    IDs = ['60199a05768eb6dcf79c67b3']    # Only valid: Tags and Sources
+    IDs = ['60466b065d89702356073f85']   # China # Only valid: Tags and Sources
+    # IDs = ['60466a00213ab5ea96916bcf']   # fenix.tecnico.ulisboa # Only valid: Tags and Sources
 
     # Set up DB
     client = MongoClient()
@@ -41,7 +42,7 @@ if __name__ == '__main__':
     collectionSource = db['locations']
 
     contentList = list(getContentDocsPerPlatform(collectionCont, list(config['platforms'].keys())))
-    contentDict = {x['_id']: x for x in contentList}
+    contentDict = {str(x['_id']): x for x in contentList}
 
     try:
         for id in IDs:
@@ -50,7 +51,7 @@ if __name__ == '__main__':
             associatedContent = info['associatedContent']
             entityLabel = info['label'] if matchingColl is collectionSource else info['mentionForms'][0]
 
-            daysOfAccess = [contentDict[c['id']]['timestamp'] for c in associatedContent]
+            daysOfAccess = [contentDict[str(c['id'])]['timestamp'] for c in associatedContent]
             daysOfAccess = [item for sublist in daysOfAccess for item in sublist]   # Flatten list of lists
 
             daysOfAccess = pd.Series(daysOfAccess)
@@ -58,8 +59,8 @@ if __name__ == '__main__':
             # daysOfAccessDT = pd.Series(daysOfAccess.values, index=pd.to_datetime(daysOfAccess, unit='s'))
             dayFrequencies = daysOfAccess.value_counts()
 
-            calmap.calendarplot(dayFrequencies, monthticks=3, daylabels='MTWTFSS', dayticks=True, fillcolor='grey', linewidth=0, fig_kws=dict(figsize=(16, 8)))
-            plt.title(entityLabel)
+            calmap.calendarplot(dayFrequencies, monthticks=3, daylabels='MTWTFSS', dayticks=True, fillcolor='grey', linewidth=0, fig_kws=dict(figsize=(16, 10)))
+            # plt.title(entityLabel)
             plt.savefig(join(outputDir, f'calendarHeatMap-{entityLabel}.png'))
     except Exception as ex:
         print(traceback.format_exc())

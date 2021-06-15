@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
         logging.info('Calculating frequencies from graph')
         for d in timeNodes:
-            neighborNodes = list(G.numNeighbors(d))
+            neighborNodes = list(G.neighbors(d))
 
             # Count platforms
             neighborPlatforms = [G.nodes[n]['platform'] for n in neighborNodes if G.nodes[n]['nodeClass'] == 'content']
@@ -90,7 +90,7 @@ if __name__ == '__main__':
         # Make plot
         g = sns.FacetGrid(plotDf, col='Platform', col_wrap=3, height=6, margin_titles=True, xlim=(timeNodes[0], timeNodes[-1]))
         g.map(sns.scatterplot, "Day", "Count", alpha=.6)      # order=['Facebook', 'Google Search', 'YouTube', 'Reddit', 'Twitter']
-        plt.savefig(join(config['plotDir'], f'platformDistOverTime.png'), dpi=100)
+        plt.savefig(join(config['plotDir'], f'platformDistOverTime.png'), dpi=200)
         plt.close()
 
         # Prepare data for content type plot
@@ -104,10 +104,14 @@ if __name__ == '__main__':
 
         plotDf = plotDf.reset_index()
 
+        sns.set(font_scale=3.5)
+        HEIGHT = 8.5
+        ASPECT = 1.9
+
         # Make plot
-        g = sns.FacetGrid(plotDf, col='Content Type', col_wrap=3, height=6, margin_titles=True, xlim=(timeNodes[0], timeNodes[-1]))
+        g = sns.FacetGrid(plotDf, col='Content Type', height=HEIGHT, aspect=ASPECT, margin_titles=True, xlim=(timeNodes[0], timeNodes[-1]), col_wrap=3)
         g.map(sns.scatterplot, "Day", "Count", alpha=.6)
-        plt.savefig(join(config['plotDir'], f'contentDistOverTime.png'), dpi=100)
+        plt.savefig(join(config['plotDir'], f'ContentDistOverTime.png'), dpi=200)
         plt.close()
 
         # Make plot for platform/content type
@@ -116,16 +120,16 @@ if __name__ == '__main__':
         combinedFrequencyDf = combinedFrequencyDf[~(combinedFrequencyDf == 0).any(axis=1)]  # Drop zero counts
 
         print(combinedFrequencyDf.head())
-        g = sns.FacetGrid(combinedFrequencyDf, col='Content Type', hue='Platform', height=5, xlim=(timeNodes[0], timeNodes[-1]))
+        g = sns.FacetGrid(combinedFrequencyDf, col='Content Type', hue='Platform', height=HEIGHT, aspect=ASPECT, xlim=(timeNodes[0], timeNodes[-1]), col_wrap=3)
         g.map(sns.scatterplot, "Day", "Count", alpha=.6)
         g.add_legend()
-        plt.savefig(join(config['plotDir'], f'ContentTypePerPlatform.png'), dpi=100)
+        plt.savefig(join(config['plotDir'], f'ContentTypePerPlatform.png'), dpi=200)
         plt.close()
 
-        g = sns.FacetGrid(combinedFrequencyDf, col='Platform', hue='Content Type', height=5, xlim=(timeNodes[0], timeNodes[-1]))
+        g = sns.FacetGrid(combinedFrequencyDf, col='Platform', hue='Content Type', height=HEIGHT, aspect=ASPECT, xlim=(timeNodes[0], timeNodes[-1]), col_wrap=3)
         g.map(sns.scatterplot, "Day", "Count", alpha=.6)
         g.add_legend()
-        plt.savefig(join(config['plotDir'], f'PlatformPerContentType.png'), dpi=100)
+        plt.savefig(join(config['plotDir'], f'PlatformPerContentType.png'), dpi=200)
         plt.close()
 
 

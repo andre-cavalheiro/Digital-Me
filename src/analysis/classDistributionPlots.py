@@ -47,7 +47,7 @@ if __name__ == '__main__':
         outputDf = outputDf.append(auxDf)
 
         # Location
-        locationSubClasses = [G.nodes[n]['locationType'] for n in G.nodes() if G.nodes[n]['nodeClass'] == 'location']
+        locationSubClasses = [G.nodes[n]['locationType'] for n in G.nodes() if G.nodes[n]['nodeClass'] == 'spatial']
         subClassCount = Counter(locationSubClasses)
         auxDf = pd.DataFrame.from_dict(subClassCount, orient='index', columns=['Count'])
         auxDf.index.rename('Subclass', inplace=True)
@@ -79,10 +79,17 @@ if __name__ == '__main__':
                          path=['Class', 'Subclass'],
                          values='Count',
                          hover_data=['percentage'],
-                         custom_data=['percentage'])
+                         custom_data=['percentage'],
+                         color_continuous_scale ='Mint')
 
         fig.data[0].textinfo = 'label+text+value+percent root+percent parent'
         fig.layout.hovermode = False
+
+        fig.update_layout(
+            font=dict(
+                size=21,
+            )
+        )
 
         # fig.layout.hovermode = False
         plot(fig, filename=join(config['plotDir'], f'treemap-nodes.html'))

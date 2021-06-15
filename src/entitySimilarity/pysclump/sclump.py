@@ -6,6 +6,9 @@ A Python Implementation of 'Spectral Clustering in Heterogeneous Information Net
 from sklearn.cluster import KMeans
 import numpy as np
 from scipy.optimize import minimize
+from sklearn.preprocessing import normalize
+
+import wandb
 
 # Internal dependencies.
 try:
@@ -35,8 +38,9 @@ class SClump:
                 raise ValueError('Invalid shape of similarity matrix.')
             
             # Normalize so that row sums are 1.
-            row_normalized_matrix = matrix/matrix.sum(axis=1, keepdims=True)
-            
+            # row_normalized_matrix = matrix/matrix.sum(axis=1, keepdims=True)
+            row_normalized_matrix = normalize(matrix, norm='l1', axis=1)
+
             self.similarity_matrices.append(row_normalized_matrix)
             self.metapath_index[metapath] = index
 
@@ -44,7 +48,7 @@ class SClump:
         self.num_metapaths = len(similarity_matrices)
         
 
-    def run(self, verbose=False, cluster_using='similarity', **kwargs):
+    def run(self, verbose=False, cluster_using='similarity', num_iterations=20, alpha=0.5, beta=10, gamma=0.01):
         """
         Returns a tuple of:
         * labels: The predicted cluster labels for each node.
@@ -54,7 +58,7 @@ class SClump:
         if cluster_using not in ['similarity', 'laplacian']:
             raise ValueError('Invalid option for parameter \'cluster_using\'.')
 
-        similarity_matrix, metapath_weights, losses = self.optimize(verbose=verbose, **kwargs)
+        similarity_matrix, metapath_weights, final_loss = self.optimize(verbose=verbose, num_iterations=num_iterations, alpha=alpha, beta=beta, gamma=gamma)
 
         if cluster_using == 'similarity':
             labels = self.cluster(similarity_matrix)
@@ -65,7 +69,7 @@ class SClump:
 
         metapath_weights_dict = {metapath: metapath_weights[index] for metapath, index in self.metapath_index.items()}
         
-        return labels, similarity_matrix, metapath_weights_dict, losses
+        return labels, similarity_matrix, metapath_weights_dict, final_loss
     
     
     def cluster(self, feature_matrix):
@@ -98,16 +102,31 @@ class SClump:
         S = W
 
         # Iterate.
-        losses = []
         for iteration in range(num_iterations):
             
             if verbose:
-                loss = np.trace(np.matmul((S - W).T, (S - W))) 
-                loss += self.alpha * np.trace(np.matmul(S.T, S))
-                loss += self.beta * np.dot(lambdas, lambdas)
-                loss += self.gamma * np.sum(eigenvalues(normalized_laplacian(S), num=self.num_clusters))
-                losses.append(loss)
+                loss = np.trace(np.matmul((S - W).T, (S - W)))
+                alphaloss = self.alpha * np.trace(np.matmul(S.T, S))
+                betaloss = self.beta * np.dot(lambdas, lambdas)
+                gammaloss = self.gamma * np.sum(eigenvalues(normalized_laplacian(S), num=self.num_clusters))
+                loss = loss + alphaloss + betaloss + gammaloss
+
+                print('==============================================')
                 print('Iteration %d: Loss = %0.3f' % (iteration, loss))
+                print('Iteration %d: ALPHA = %0.3f' % (iteration, alphaloss))
+                print('Iteration %d: BETA = %0.3f' % (iteration, betaloss))
+                print('Iteration %d: GAMMA = %0.3f' % (iteration, gammaloss))
+                print(f'LAMMADAS: {lambdas}')
+                print('==============================================')
+
+                wandb.log({
+                    'Loss': loss,
+                    'AlphaLoss': alphaloss,
+                    'BetaLoss': betaloss,
+                    'GammaLoss': gammaloss,
+                    'iteration': iteration
+                })
+
 
             # Update F.
             F = self.optimize_F(S)
@@ -121,12 +140,21 @@ class SClump:
             # Recompute W.
             W = np.tensordot(lambdas, self.similarity_matrices, axes=[[0], [0]])
 
-        return S, lambdas, losses
+        # Always calculate the final loss
+        loss = np.trace(np.matmul((S - W).T, (S - W)))
+        alphaloss = self.alpha * np.trace(np.matmul(S.T, S))
+        betaloss = self.beta * np.dot(lambdas, lambdas)
+        gammaloss = self.gamma * np.sum(eigenvalues(normalized_laplacian(S), num=self.num_clusters))
+        loss = loss + alphaloss + betaloss + gammaloss
+
+        return S, lambdas, loss
+
 
     # Optimize F, keeping S fixed.
     def optimize_F(self, S):
         LS = normalized_laplacian(S)    
         return eigenvectors(LS, num=self.num_clusters)
+
 
     # Optimize S, keeping W and F fixed.
     def optimize_S(self, W, F):
